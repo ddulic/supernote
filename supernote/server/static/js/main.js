@@ -18,8 +18,8 @@ createApp({
         RenameModal
     },
     setup() {
-        // Auth State
-        const isLoggedIn = ref(false);
+        // Auth State — initialize synchronously to avoid flashing the login form
+        const isLoggedIn = ref(!!getToken());
         const loginError = ref(null);
         const showSystemPanel = ref(false);
 

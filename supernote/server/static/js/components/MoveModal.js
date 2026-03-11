@@ -4,35 +4,35 @@ export default {
     name: 'MoveModal',
     props: ['itemIds'],
     template: `
-        <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" @click.self="$emit('close')">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh] animate-in zoom-in-95">
-                <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-slate-900">Move {{ itemIds.length }} items to...</h3>
-                    <button @click="$emit('close')" class="text-slate-400 hover:text-slate-600">
+        <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50" @click.self="$emit('close')">
+            <div class="bg-white rounded-lg border border-gray-300 shadow-xl w-full max-w-md flex flex-col max-h-[80vh]">
+                <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-black">Move {{ itemIds.length }} items to...</h3>
+                    <button @click="$emit('close')" class="text-gray-400 hover:text-black">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
 
                 <div class="flex-1 overflow-y-auto p-2">
-                    <div @click="selectTarget('0')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors" :class="{'bg-indigo-50 border border-indigo-100': targetDirId === '0'}">
-                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+                    <div @click="selectTarget('0')" class="flex items-center gap-3 p-3 rounded hover:bg-slate-50 cursor-pointer transition-colors" :class="{'bg-slate-100 border border-slate-300': targetDirId === '0'}">
+                        <div class="w-10 h-10 bg-slate-200 text-slate-700 rounded flex items-center justify-center">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
                         </div>
-                        <span class="font-medium text-slate-700">Cloud Root</span>
+                        <span class="font-medium text-black">Cloud Root</span>
                     </div>
 
-                    <div v-for="folder in folders" :key="folder.id" @click="selectTarget(folder.id)" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors" :class="{'bg-indigo-50 border border-indigo-100': targetDirId === folder.id}">
+                    <div v-for="folder in folders" :key="folder.id" @click="selectTarget(folder.id)" class="flex items-center gap-3 p-3 rounded hover:bg-slate-50 cursor-pointer transition-colors" :class="{'bg-slate-100 border border-slate-300': targetDirId === folder.id}">
                         <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
                         </div>
-                        <span class="font-medium text-slate-700">{{ folder.name }}</span>
+                        <span class="font-medium text-black">{{ folder.name }}</span>
                     </div>
                 </div>
 
-                <div class="p-6 border-t border-slate-100 flex justify-end gap-3">
-                    <button @click="$emit('close')" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium">Cancel</button>
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button @click="$emit('close')" class="px-4 py-2 text-gray-500 hover:text-black font-medium">Cancel</button>
                     <button @click="confirmMove" :disabled="!targetDirId"
-                        class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all">
+                        class="px-6 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-medium transition-all">
                         Move Here
                     </button>
                 </div>
