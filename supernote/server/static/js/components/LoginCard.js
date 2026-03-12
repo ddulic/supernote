@@ -25,38 +25,38 @@ export default {
         };
     },
     template: `
-    <div class="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-20">
+    <div class="max-w-md mx-auto bg-white rounded-lg border border-gray-300 shadow-lg overflow-hidden mt-20">
         <div class="p-8 sm:p-12">
             <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-200 mx-auto mb-4">S</div>
-                <h2 class="text-2xl font-bold text-slate-900">Welcome Back</h2>
-                <p class="text-slate-500 mt-2">Sign in to access your Supernote cloud</p>
+                <div class="w-16 h-16 bg-black rounded-lg flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">S</div>
+                <h2 class="text-2xl font-bold text-black">Welcome Back</h2>
+                <p class="text-gray-500 mt-2">Sign in to access your Supernote Cloud</p>
             </div>
 
             <form @submit.prevent="handleSubmit" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+                    <label class="block text-sm font-medium text-black mb-2">Email Address</label>
                     <input type="email" v-model="email" required
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+                        class="w-full px-4 py-3 rounded border border-gray-300 focus:border-black focus:ring-2 focus:ring-gray-200 outline-none transition-all"
                         placeholder="you@example.com">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                    <label class="block text-sm font-medium text-black mb-2">Password</label>
                     <input type="password" v-model="password" required
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+                        class="w-full px-4 py-3 rounded border border-gray-300 focus:border-black focus:ring-2 focus:ring-gray-200 outline-none transition-all"
                         placeholder="••••••••">
                 </div>
 
                 <button type="submit"
                     :disabled="isLoading"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                    class="w-full bg-black hover:bg-gray-800 text-white font-medium py-3 px-4 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
                     <span v-if="isLoading" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
                     {{ isLoading ? 'Signing in...' : 'Sign In' }}
                 </button>
             </form>
         </div>
-        <div class="bg-slate-50 p-4 text-center text-xs text-slate-400 border-t border-slate-100">
+        <div class="bg-gray-50 p-4 text-center text-xs text-gray-400 border-t border-gray-200">
             Supernote Private Cloud Server
         </div>
     </div>
