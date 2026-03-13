@@ -127,6 +127,7 @@ class PageHashingModule(ProcessorModule):
 
             # Track which page_ids are present in the current file
             current_page_ids = set()
+            note_changed = False
 
             for i in range(total_pages):
                 page_info = metadata.pages[i]
@@ -161,6 +162,7 @@ class PageHashingModule(ProcessorModule):
                         row.content_hash = current_hash
                         row.text_content = None  # Clear OCR
                         row.embedding = None  # Clear Embedding
+                        note_changed = True
 
                         # Invalidate downstream tasks
                         # Note: Tasks are keyed by page_index usually?
@@ -193,6 +195,7 @@ class PageHashingModule(ProcessorModule):
                         embedding=None,
                     )
                     session.add(new_content)
+                    note_changed = True
 
             # 2. Handle Deletions
             # Any page_id in existing_map but NOT in current_page_ids is deleted
@@ -200,6 +203,7 @@ class PageHashingModule(ProcessorModule):
                 if pid not in current_page_ids:
                     logger.info(f"Page {pid} deleted (was at {row.page_index}).")
                     await session.delete(row)
+                    note_changed = True
 
                     # Cleanup Blobs
                     png_path = get_page_png_path(file_id, pid)
@@ -216,5 +220,15 @@ class PageHashingModule(ProcessorModule):
                         .where(SystemTaskDO.file_id == file_id)
                         .where(SystemTaskDO.key == f"page_{pid}")
                     )
+
+            # 3. Invalidate global summary task if any page changed
+            if note_changed:
+                logger.info(f"Note {file_id} changed. Invalidating summary task.")
+                await session.execute(
+                    delete(SystemTaskDO)
+                    .where(SystemTaskDO.file_id == file_id)
+                    .where(SystemTaskDO.key == "global")
+                    .where(SystemTaskDO.task_type == "SUMMARY_GENERATION")
+                )
 
             await session.commit()
