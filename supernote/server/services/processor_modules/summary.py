@@ -134,7 +134,9 @@ class SummaryModule(ProcessorModule):
             user_email = user.email
 
             # 2. Key Generation
-            file_basis = file_do.storage_key or str(file_do.id)
+            # Use file_id (not storage_key) as the stable basis — storage_key changes
+            # on every re-upload, which would generate a new UUID and create duplicate summaries.
+            file_basis = str(file_do.id)
             summary_uuid = get_summary_id(file_basis)
             transcript_uuid = get_transcript_id(file_basis)
 
