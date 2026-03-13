@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Optional
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from supernote.server.db.models.file import RecycleFileDO, UserFileDO
@@ -96,10 +96,29 @@ class VirtualFileSystem:
         md5: str,
         storage_key: str,
     ) -> UserFileDO:
-        """Create a file entry (assuming content is handled elsewhere/CAS)."""
+        """Create or overwrite a file entry (assuming content is handled elsewhere/CAS)."""
         now_ms = int(time.time() * 1000)
 
         # Check quota (TODO: Implement Capacity check)
+
+        # If a file with the same name already exists in this directory, overwrite it.
+        stmt = select(UserFileDO).where(
+            UserFileDO.user_id == user_id,
+            UserFileDO.directory_id == parent_id,
+            UserFileDO.file_name == name,
+            UserFileDO.is_folder == "N",
+            UserFileDO.is_active == "Y",
+        )
+        result = await self.db.execute(stmt)
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.size = size
+            existing.md5 = md5
+            existing.storage_key = storage_key
+            existing.update_time = now_ms
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing
 
         new_file = UserFileDO(
             user_id=user_id,
@@ -451,6 +470,27 @@ class VirtualFileSystem:
 
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def get_folder_size(self, user_id: int, folder_id: int) -> int:
+        """Compute the total size of all active files within a folder (recursively)."""
+        result = await self.db.execute(
+            text("""
+                WITH RECURSIVE subtree(id) AS (
+                    SELECT id FROM f_user_file
+                    WHERE user_id = :uid AND directory_id = :fid AND is_active = 'Y'
+                    UNION ALL
+                    SELECT f.id FROM f_user_file f
+                    JOIN subtree s ON f.directory_id = s.id
+                    WHERE f.user_id = :uid AND f.is_active = 'Y'
+                )
+                SELECT COALESCE(SUM(f.size), 0)
+                FROM f_user_file f
+                JOIN subtree s ON f.id = s.id
+                WHERE f.is_folder = 'N'
+            """),
+            {"uid": user_id, "fid": folder_id},
+        )
+        return result.scalar() or 0
 
     async def get_total_usage(self, user_id: int) -> int:
         """Calculate total storage usage for a user in bytes."""
