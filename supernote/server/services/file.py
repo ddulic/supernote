@@ -897,7 +897,10 @@ class FileService:
             file_entities: list[FileEntity] = []
             for item in items:
                 full_path = await vfs.get_full_path(user_id, item.id)
-                file_entities.append(_to_file_entity(item, full_path))
+                entity = _to_file_entity(item, full_path)
+                if item.is_folder == "Y":
+                    entity.size = await vfs.get_folder_size(user_id, item.id)
+                file_entities.append(entity)
 
             return file_entities
 
