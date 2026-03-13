@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 routes = web.RouteTableDef()
 
 
-@routes.post("/api/schedule/groups")
+@routes.post("/api/file/schedule/group")
 async def create_group(request: web.Request) -> web.Response:
     user = request["user"]
     try:
@@ -53,7 +53,7 @@ async def create_group(request: web.Request) -> web.Response:
         return web.json_response(create_error_response(str(e)).to_dict(), status=400)
 
 
-@routes.get("/api/schedule/groups")
+@routes.post("/api/file/schedule/group/all")
 async def list_groups(request: web.Request) -> web.Response:
     user = request["user"]
     schedule_service: ScheduleService = request.app["schedule_service"]
@@ -61,7 +61,6 @@ async def list_groups(request: web.Request) -> web.Response:
 
     groups = await schedule_service.list_groups(user_id)
 
-    # Map to ScheduleTaskGroupItem
     items = [
         ScheduleTaskGroupItem(
             task_list_id=str(g.task_list_id),
@@ -77,10 +76,10 @@ async def list_groups(request: web.Request) -> web.Response:
     )
 
 
-@routes.delete("/api/schedule/groups/{id}")
+@routes.delete("/api/file/schedule/group/{taskListId}")
 async def delete_group(request: web.Request) -> web.Response:
     user = request["user"]
-    group_id = int(request.match_info["id"])
+    group_id = int(request.match_info["taskListId"])
     schedule_service: ScheduleService = request.app["schedule_service"]
     user_id = await request.app["user_service"].get_user_id(user)
 
@@ -93,7 +92,7 @@ async def delete_group(request: web.Request) -> web.Response:
     return web.json_response(BaseResponse(success=True).to_dict())
 
 
-@routes.post("/api/schedule/tasks")
+@routes.post("/api/file/schedule/task")
 async def create_task(request: web.Request) -> web.Response:
     user = request["user"]
     try:
@@ -131,16 +130,13 @@ async def create_task(request: web.Request) -> web.Response:
         return web.json_response(create_error_response(str(e)).to_dict(), status=400)
 
 
-@routes.get("/api/schedule/tasks")
+@routes.post("/api/file/schedule/task/all")
 async def list_tasks(request: web.Request) -> web.Response:
     user = request["user"]
-    group_id_str = request.query.get("taskListId")
-    group_id = int(group_id_str) if group_id_str else None
-
     schedule_service: ScheduleService = request.app["schedule_service"]
     user_id = await request.app["user_service"].get_user_id(user)
 
-    tasks_dos = await schedule_service.list_tasks(user_id, group_id)
+    tasks_dos = await schedule_service.list_tasks(user_id)
 
     tasks_vos = [
         ScheduleTaskInfo(
@@ -163,10 +159,9 @@ async def list_tasks(request: web.Request) -> web.Response:
     )
 
 
-@routes.put("/api/schedule/tasks/{id}")
+@routes.put("/api/file/schedule/task")
 async def update_task(request: web.Request) -> web.Response:
     user = request["user"]
-    task_id = int(request.match_info["id"])
     try:
         data = await request.json()
         dto = UpdateScheduleTaskDTO.from_dict(data)
@@ -174,6 +169,8 @@ async def update_task(request: web.Request) -> web.Response:
         return web.json_response(
             create_error_response(f"Invalid request: {e}").to_dict(), status=400
         )
+
+    task_id = int(dto.task_id)
 
     schedule_service: ScheduleService = request.app["schedule_service"]
     user_id = await request.app["user_service"].get_user_id(user)
@@ -207,10 +204,10 @@ async def update_task(request: web.Request) -> web.Response:
     )
 
 
-@routes.delete("/api/schedule/tasks/{id}")
+@routes.delete("/api/file/schedule/task/{taskId}")
 async def delete_task(request: web.Request) -> web.Response:
     user = request["user"]
-    task_id = int(request.match_info["id"])
+    task_id = int(request.match_info["taskId"])
     schedule_service: ScheduleService = request.app["schedule_service"]
     user_id = await request.app["user_service"].get_user_id(user)
 
