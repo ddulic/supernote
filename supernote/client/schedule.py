@@ -1,5 +1,5 @@
 import time
-from typing import Any, AsyncIterator, Optional
+from typing import AsyncIterator, Optional
 
 from supernote.models.base import BooleanEnum
 from supernote.models.schedule import (
@@ -8,6 +8,8 @@ from supernote.models.schedule import (
     AddScheduleTaskGroupVO,
     AddScheduleTaskVO,
     ScheduleTaskAllVO,
+    ScheduleTaskDTO,
+    ScheduleTaskGroupDTO,
     ScheduleTaskGroupItem,
     ScheduleTaskGroupVO,
     ScheduleTaskInfo,
@@ -29,7 +31,7 @@ class ScheduleClient:
         """Create a new schedule group."""
         dto = AddScheduleTaskGroupDTO(title=title)
         return await self._client.post_json(
-            "/api/schedule/groups", AddScheduleTaskGroupVO, json=dto.to_dict()
+            "/api/file/schedule/group", AddScheduleTaskGroupVO, json=dto.to_dict()
         )
 
     async def list_groups(self) -> AsyncIterator[ScheduleTaskGroupItem]:
@@ -41,14 +43,13 @@ class ScheduleClient:
         Yields:
             ScheduleTaskGroupItem: A schedule group.
         """
-        page_token = None
+        page_token: str | None = None
         while True:
-            params: dict[str, Any] = {}
-            if page_token:
-                params["pageToken"] = page_token
-
-            response = await self._client.get_json(
-                "/api/schedule/groups", ScheduleTaskGroupVO, params=params
+            dto = ScheduleTaskGroupDTO(page_token=page_token)
+            response = await self._client.post_json(
+                "/api/file/schedule/group/all",
+                ScheduleTaskGroupVO,
+                json=dto.to_dict(),
             )
 
             for item in response.schedule_task_group:
@@ -60,7 +61,7 @@ class ScheduleClient:
 
     async def delete_group(self, group_id: int) -> None:
         """Delete a schedule group."""
-        await self._client.request("delete", f"/api/schedule/groups/{group_id}")
+        await self._client.request("delete", f"/api/file/schedule/group/{group_id}")
 
     async def create_task(
         self,
@@ -85,27 +86,25 @@ class ScheduleClient:
             is_reminder_on=BooleanEnum.of(is_reminder_on),
         )
         return await self._client.post_json(
-            "/api/schedule/tasks", AddScheduleTaskVO, json=dto.to_dict()
+            "/api/file/schedule/task", AddScheduleTaskVO, json=dto.to_dict()
         )
 
     async def list_tasks(
         self, group_id: Optional[int] = None
     ) -> AsyncIterator[ScheduleTaskInfo]:
-        """List all schedule tasks."""
-        next_page_tokens = None
+        """List all schedule tasks, optionally filtered by group."""
+        next_page_tokens: str | None = None
         while True:
-            params: dict[str, Any] = {}
-            if group_id:
-                params["taskListId"] = str(group_id)
-            if next_page_tokens:
-                params["nextPageTokens"] = next_page_tokens
-
-            response = await self._client.get_json(
-                "/api/schedule/tasks", ScheduleTaskAllVO, params=params
+            task_dto = ScheduleTaskDTO(next_page_tokens=next_page_tokens)
+            response = await self._client.post_json(
+                "/api/file/schedule/task/all",
+                ScheduleTaskAllVO,
+                json=task_dto.to_dict(),
             )
 
             for item in response.schedule_task:
-                yield item
+                if group_id is None or str(item.task_list_id) == str(group_id):
+                    yield item
 
             next_page_tokens = response.next_page_token
             if not next_page_tokens:
@@ -141,9 +140,9 @@ class ScheduleClient:
             last_modified=int(time.time() * 1000),
         )
         return await self._client.put_json(
-            f"/api/schedule/tasks/{task_id}", UpdateScheduleTaskVO, json=dto.to_dict()
+            "/api/file/schedule/task", UpdateScheduleTaskVO, json=dto.to_dict()
         )
 
     async def delete_task(self, task_id: int) -> None:
         """Delete a schedule task."""
-        await self._client.request("delete", f"/api/schedule/tasks/{task_id}")
+        await self._client.request("delete", f"/api/file/schedule/task/{task_id}")
