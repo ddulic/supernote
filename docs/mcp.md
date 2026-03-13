@@ -17,9 +17,28 @@ The Supernote MCP server is available at:
 > [!NOTE]
 > The MCP service runs on port `8081` by default, while the main Supernote Hub web interface and OAuth endpoints run on `8080`.
 
-### Secure Authentication (IndieAuth/OAuth 2.1)
+### Authentication
 
-Supernote Hub implements modern **Dynamic OAuth 2.1** (IndieAuth style).
+Two authentication methods are supported:
+
+#### Option A — API Keys (recommended for simple setups)
+
+API keys are long-lived tokens you generate once from the Supernote Hub web interface and paste into your MCP client config. They require no OAuth flow or browser interaction.
+
+**Generating a key:**
+1. Log in to the Supernote Hub web interface.
+2. Click the **key icon** (🔑) in the top-right header, next to the system status icon.
+3. Enter a name for the key (e.g. "Claude Desktop") and click **Create**.
+4. Copy the key — it is shown **only once** and cannot be retrieved later.
+
+Keys start with the `snmcp_` prefix. They are stored as SHA-256 hashes on the server, so a compromised database does not expose usable credentials.
+
+**Revoking a key:**
+Open the same panel and click **Revoke** next to the key. The panel also shows the last time each key was used.
+
+#### Option B — IndieAuth / OAuth 2.1
+
+Supernote Hub implements modern **Dynamic OAuth 2.1** (IndieAuth style). This is suitable for agents that can drive a browser-based OAuth flow.
 
 - **Client ID**: Your Client ID should be a URL identifying the application or agent (e.g., `https://<your home assistant url>`).
 - **Dynamic Registration**: You don't need to pre-register clients. The server will dynamically recognize and authorize clients based on their URL.
@@ -27,9 +46,27 @@ Supernote Hub implements modern **Dynamic OAuth 2.1** (IndieAuth style).
 
 ## Configuration for Popular Agents
 
-### 1. Claude Desktop (Claude.ai)
+### 1. Claude Desktop (API key)
 
-To connect Claude to your Supernote notes, add the following to your `claude_desktop_config.json`:
+Generate an API key as described above, then add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "supernote": {
+      "command": "mcp-proxy",
+      "args": ["http://localhost:8081/mcp"],
+      "env": {
+        "MCP_BEARER_TOKEN": "snmcp_your_key_here"
+      }
+    }
+  }
+}
+```
+
+### 2. Claude Desktop (OAuth / IndieAuth)
+
+If you prefer the OAuth flow (no static key):
 
 ```json
 {
@@ -42,9 +79,20 @@ To connect Claude to your Supernote notes, add the following to your `claude_des
 }
 ```
 
-### 2. Custom Agents (IndieAuth)
+### 3. Custom Agents (API key)
 
-When building a custom agent, use your application's URL as the `client_id`. Supernote Hub will treat this as a trusted IndieAuth client:
+Pass the key as a standard `Authorization: Bearer` header:
+
+```python
+import httpx
+
+headers = {"Authorization": "Bearer snmcp_your_key_here"}
+response = httpx.post("http://localhost:8081/mcp", headers=headers, ...)
+```
+
+### 4. Custom Agents (IndieAuth)
+
+When building a custom agent that drives the OAuth flow, use your application's URL as the `client_id`:
 
 ```python
 # Example OAuth request

@@ -462,6 +462,51 @@ function calculateFileMd5(file) {
     });
 }
 /**
+ * MCP API Key management
+ */
+export async function fetchApiKeys() {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/mcp/api-keys', {
+        method: 'GET',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to fetch API keys: ${response.statusText}`);
+    return await response.json();
+}
+
+export async function createApiKey(name) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/mcp/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-access-token': currentToken },
+        body: JSON.stringify({ name })
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to create API key: ${response.statusText}`);
+    return await response.json();
+}
+
+export async function deleteApiKey(keyId) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch(`/api/mcp/api-keys/${keyId}`, {
+        method: 'DELETE',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to delete API key: ${response.statusText}`);
+}
+
+/**
  * Fetch processing status for a list of files.
  * @param {Array<number>} fileIds
  * @returns {Promise<{success: boolean, statusMap: Object}>}

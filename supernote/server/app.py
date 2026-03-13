@@ -14,6 +14,7 @@ from yarl import URL
 
 from supernote.models.base import create_error_response
 from supernote.server.db.migrations import run_migrations
+from supernote.server.mcp.api_key import ApiKeyService
 from supernote.server.mcp.auth import create_auth_app
 from supernote.server.mcp.server import create_mcp_server, run_server, set_services
 from supernote.server.utils.auth_utils import get_token_from_request
@@ -29,6 +30,7 @@ from .routes import (
     extended,
     file_device,
     file_web,
+    mcp,
     oss,
     schedule,
     summary,
@@ -291,6 +293,7 @@ def create_app(config: ServerConfig) -> web.Application:
     app["user_service"] = user_service
     app["file_service"] = file_service
     app["url_signer"] = UrlSigner(config.auth.secret_key, coordination_service)
+    app["api_key_service"] = ApiKeyService(coordination_service)
     app["schedule_service"] = ScheduleService(session_manager)
     ai_service: AIService
     if config.mistral_api_key:
@@ -356,6 +359,7 @@ def create_app(config: ServerConfig) -> web.Application:
     app.add_routes(schedule.routes)
     app.add_routes(summary.routes)
     app.add_routes(extended.routes)
+    app.add_routes(mcp.routes)
 
     # Serve static frontend files
     static_path = Path(str(importlib.resources.files("supernote.server") / "static"))

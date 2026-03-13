@@ -10,6 +10,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 
 from supernote.models.base import ErrorCode, create_error_response
+from supernote.server.mcp.api_key import ApiKeyService
 from supernote.server.mcp.models import (
     SearchRequestDTO,
     SearchResponseVO,
@@ -43,27 +44,44 @@ def set_services(
 
 
 class SupernoteTokenVerifier(TokenVerifier):
-    """Verifier that maps tokens to users using UserService."""
+    """Verifier that maps tokens to users using UserService.
+
+    Accepts both OAuth access tokens (from the IndieAuth flow) and
+    long-lived API keys (snmcp_ prefix, stored as SHA-256 hashes).
+    """
 
     def __init__(
         self, user_service: UserService, coordination_service: CoordinationService
     ):
         self.user_service = user_service
         self.coordination_service = coordination_service
+        self._api_key_service = ApiKeyService(coordination_service)
 
     async def verify_token(self, token: str) -> SupernoteAccessToken | None:
+        # 1. Try OAuth access token (short-lived, stored by value)
         key = f"mcp:access_token:{token}"
         data = await self.coordination_service.get_value(key)
-        if not data:
-            return None
-        token_data = json.loads(data)
-        return SupernoteAccessToken(
-            token=token,
-            user_id=token_data.get("user_id"),
-            client_id=token_data.get("client_id", "unknown"),
-            scopes=token_data.get("scopes", []),
-            resource=token_data.get("resource"),
-        )
+        if data:
+            token_data = json.loads(data)
+            return SupernoteAccessToken(
+                token=token,
+                user_id=token_data.get("user_id"),
+                client_id=token_data.get("client_id", "unknown"),
+                scopes=token_data.get("scopes", []),
+                resource=token_data.get("resource"),
+            )
+
+        # 2. Try API key (long-lived, stored as SHA-256 hash)
+        user_id = await self._api_key_service.verify_key(token)
+        if user_id:
+            return SupernoteAccessToken(
+                token=token,
+                user_id=user_id,
+                client_id="api_key",
+                scopes=["supernote:all"],
+            )
+
+        return None
 
 
 async def _get_auth_user_id(ctx: Context) -> Optional[int]:
