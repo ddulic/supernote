@@ -194,7 +194,10 @@ class FileService:
                 recursive_list = await vfs.list_recursive(user_id, parent_id)
                 for item, rel_path in recursive_list:
                     full_path = f"{clean_path}/{rel_path}" if clean_path else rel_path
-                    entities.append(_to_file_entity(item, full_path))
+                    entity = _to_file_entity(item, full_path)
+                    if item.is_folder == "Y":
+                        entity.size = await vfs.get_folder_size(user_id, item.id)
+                    entities.append(entity)
             else:
                 # Flat listing
                 do_list = await vfs.list_directory(user_id, parent_id)
@@ -205,7 +208,10 @@ class FileService:
                         if clean_path
                         else item.file_name
                     )
-                    entities.append(_to_file_entity(item, full_path))
+                    entity = _to_file_entity(item, full_path)
+                    if item.is_folder == "Y":
+                        entity.size = await vfs.get_folder_size(user_id, item.id)
+                    entities.append(entity)
         return entities
 
     async def list_folder_by_id(
@@ -243,7 +249,10 @@ class FileService:
                     full_path = (
                         f"{base_path_clean}/{rel_path}" if base_path_clean else rel_path
                     )
-                    entities.append(_to_file_entity(item, full_path))
+                    entity = _to_file_entity(item, full_path)
+                    if item.is_folder == "Y":
+                        entity.size = await vfs.get_folder_size(user_id, item.id)
+                    entities.append(entity)
             else:
                 do_list = await vfs.list_directory(user_id, folder_id)
                 for item in do_list:
@@ -253,7 +262,10 @@ class FileService:
                         if base_path_clean
                         else item.file_name
                     )
-                    entities.append(_to_file_entity(item, full_path))
+                    entity = _to_file_entity(item, full_path)
+                    if item.is_folder == "Y":
+                        entity.size = await vfs.get_folder_size(user_id, item.id)
+                    entities.append(entity)
         return entities
 
     async def get_file_info(self, user: str, path_str: str) -> FileEntity | None:
@@ -285,7 +297,10 @@ class FileService:
             # Always resolve the canonical path from the node structure
             full_path = await vfs.get_full_path(user_id, node.id)
 
-            return _to_file_entity(node, full_path)
+            entity = _to_file_entity(node, full_path)
+            if node.is_folder == "Y":
+                entity.size = await vfs.get_folder_size(user_id, node.id)
+            return entity
 
     async def get_file_info_by_id(self, user: str, file_id: int) -> FileEntity | None:
         """Get file info by path or ID for a specific user using VFS."""
@@ -300,7 +315,10 @@ class FileService:
             # This may do a bunch of queries.
             full_path = await vfs.get_full_path(user_id, node.id)
 
-            return _to_file_entity(node, full_path)
+            entity = _to_file_entity(node, full_path)
+            if node.is_folder == "Y":
+                entity.size = await vfs.get_folder_size(user_id, node.id)
+            return entity
 
     async def get_path_info(self, user: str, node_id: int) -> PathInfo:
         """Resolve both full path and ID path for a node.
