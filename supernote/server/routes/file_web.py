@@ -298,7 +298,11 @@ async def handle_file_list_query(request: web.Request) -> web.Response:
 
         user_file_vos: list[UserFileVO] = []
         for entity in page_items:
-            display_name = SYSTEM_DIR_DISPLAY_NAMES.get(entity.name, entity.name)
+            display_name = (
+                SYSTEM_DIR_DISPLAY_NAMES.get(entity.name, entity.name)
+                if entity.parent_id == 0
+                else entity.name
+            )
             user_file_vos.append(
                 UserFileVO(
                     id=str(entity.id),

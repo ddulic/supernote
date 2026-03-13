@@ -351,6 +351,29 @@ async def test_path_query_flattening(
     assert info.id_path == f"{note_id}"
 
 
+async def test_system_dir_name_not_applied_to_user_folders(
+    web_client: WebClient,
+) -> None:
+    """Verify that system display names (e.g. 'Export') are not applied to user-created
+    folders that happen to share a name with a system directory."""
+    parent = await web_client.create_folder(parent_id=0, name="MyParent")
+    parent_id = int(parent.id)
+
+    await web_client.create_folder(parent_id=parent_id, name="EXPORT")
+    await web_client.create_folder(parent_id=parent_id, name="INBOX")
+    await web_client.create_folder(parent_id=parent_id, name="SCREENSHOT")
+
+    res = await web_client.list_query(directory_id=parent_id)
+    names = {f.file_name for f in res.user_file_vo_list}
+
+    assert "EXPORT" in names
+    assert "INBOX" in names
+    assert "SCREENSHOT" in names
+    assert "Export" not in names
+    assert "Inbox" not in names
+    assert "Screenshot" not in names
+
+
 async def test_list_query_flattening(
     web_client: WebClient,
 ) -> None:
