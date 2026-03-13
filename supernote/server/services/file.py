@@ -17,6 +17,7 @@ from supernote.server.constants import (
     CATEGORY_CONTAINERS,
     IMMUTABLE_SYSTEM_DIRECTORIES,
     USER_DATA_BUCKET,
+    WEB_IMMUTABLE_NAMES,
 )
 from supernote.server.exceptions import (
     AccessDenied,
@@ -540,7 +541,7 @@ class FileService:
                         )
 
                 # Immutability check
-                if node.file_name in IMMUTABLE_SYSTEM_DIRECTORIES:
+                if node.file_name in WEB_IMMUTABLE_NAMES:
                     raise AccessDenied(
                         f"Cannot delete system directory: {node.file_name}"
                     )
@@ -578,7 +579,7 @@ class FileService:
                     raise FileNotFound(f"Source item {item_id} not found")
 
                 # Immutability check
-                if node.file_name in IMMUTABLE_SYSTEM_DIRECTORIES:
+                if node.file_name in WEB_IMMUTABLE_NAMES:
                     raise AccessDenied(
                         f"Cannot move system directory: {node.file_name}"
                     )
@@ -658,7 +659,7 @@ class FileService:
 
                 # Check immutability? Usually copy is allowed, but let's be safe.
                 # Actually device API copy_item blocks it too.
-                if node.file_name in IMMUTABLE_SYSTEM_DIRECTORIES:
+                if node.file_name in WEB_IMMUTABLE_NAMES:
                     raise AccessDenied(
                         f"Cannot copy system directory: {node.file_name}"
                     )
@@ -733,7 +734,7 @@ class FileService:
                 raise FileNotFound("Source not found")
 
             # Immutability check
-            if node.file_name in IMMUTABLE_SYSTEM_DIRECTORIES:
+            if node.file_name in WEB_IMMUTABLE_NAMES:
                 raise AccessDenied(f"Cannot rename system directory: {node.file_name}")
 
             # Check if name already exists in same directory
