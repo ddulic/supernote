@@ -92,6 +92,58 @@ async def test_multi_user_content_with_same_hash_isolation(
     )
 
 
+async def test_same_user_upload_overwrites_existing_file(
+    client: TestClient,
+    create_test_user: None,
+    coordination_service: CoordinationService,
+    server_config: ServerConfig,
+) -> None:
+    """Test that uploading the same filename again overwrites (not duplicates) the file."""
+    headers = await register_session(
+        coordination_service, USER_A, server_config.auth.secret_key
+    )
+    token = headers["x-access-token"]
+    base_url = str(client.make_url(""))
+    file_client = DeviceClient(
+        Client(client.session, auth=ConstantAuth(token), host=base_url)
+    )
+
+    filename = "20260313_133541.note"
+    content_v1 = b"version 1 content"
+    content_v2 = b"version 2 content - updated"
+    hash_v2 = hashlib.md5(content_v2).hexdigest()
+
+    # Upload v1
+    await file_client.upload_content(
+        path=f"/{filename}", content=content_v1, equipment_no="EQ001"
+    )
+
+    # Upload v2 (same path)
+    await file_client.upload_content(
+        path=f"/{filename}", content=content_v2, equipment_no="EQ001"
+    )
+
+    # Should only be one file, not two
+    entries = await file_client.list_folder(path="/", equipment_no="EQ001")
+    names = [e.name for e in entries.entries]
+    assert names.count(filename) == 1, (
+        f"Expected 1 copy of {filename}, got {names.count(filename)}"
+    )
+
+    # Content should be the latest version
+    info = await file_client.query_by_path(path=f"/{filename}", equipment_no="EQ001")
+    assert info.entries_vo
+    assert info.entries_vo.content_hash == hash_v2, (
+        "File should have been overwritten with v2"
+    )
+
+    # Downloaded content should match v2
+    downloaded = await file_client.download_content(
+        path=f"/{filename}", equipment_no="EQ001"
+    )
+    assert downloaded == content_v2
+
+
 async def test_multi_user_content_with_same_paths(
     client: TestClient,
     create_test_user: None,
