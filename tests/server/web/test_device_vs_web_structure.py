@@ -11,7 +11,7 @@ async def test_device_vs_web_structure(
     web_res = await web_client.list_query(directory_id=0)
     web_folders = {f.file_name for f in web_res.user_file_vo_list}
 
-    # Web should see: Note, Document, MyStyle, Export, Inbox, Screenshot
+    # Web should see: Note, Document, MyStyle, Export, Inbox, Screenshot (display names)
     # But NOT NOTE or DOCUMENT
     expected_web = {"Note", "Document", "MyStyle", "Export", "Inbox", "Screenshot"}
     assert expected_web.issubset(web_folders)
@@ -22,9 +22,9 @@ async def test_device_vs_web_structure(
     device_res = await device_client.list_folder("/", recursive=False)
     device_folders = {e.name for e in device_res.entries}
 
-    # Device should see: Export, Inbox, Screenshot, NOTE, DOCUMENT
+    # Device should see: EXPORT, INBOX, SCREENSHOT, NOTE, DOCUMENT (real names)
     # But NOT Note, Document, MyStyle at root
-    expected_device = {"Export", "Inbox", "Screenshot", "NOTE", "DOCUMENT"}
+    expected_device = {"EXPORT", "INBOX", "SCREENSHOT", "NOTE", "DOCUMENT"}
     assert expected_device.issubset(device_folders)
     assert "Note" not in device_folders
     assert "Document" not in device_folders

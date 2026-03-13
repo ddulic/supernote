@@ -2,7 +2,7 @@ import pytest
 
 from supernote.client.exceptions import ApiException
 from supernote.client.web import WebClient
-from supernote.server.constants import IMMUTABLE_SYSTEM_DIRECTORIES
+from supernote.server.constants import WEB_IMMUTABLE_NAMES
 
 
 async def test_soft_delete_to_recycle(
@@ -116,7 +116,7 @@ async def test_recycle_clear(
     ids_to_delete = [
         int(f.id)
         for f in list_result.user_file_vo_list
-        if f.file_name not in IMMUTABLE_SYSTEM_DIRECTORIES
+        if f.file_name not in WEB_IMMUTABLE_NAMES
     ]
     assert len(ids_to_delete) == 3
     await web_client.file_delete(id_list=ids_to_delete)
