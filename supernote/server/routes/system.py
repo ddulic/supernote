@@ -47,6 +47,15 @@ async def handle_query_server(request: web.Request) -> web.Response:
     return web.json_response(BaseResponse().to_dict())
 
 
+@routes.get("/socket.io/")
+@public_route
+async def handle_socketio(request: web.Request) -> web.Response:
+    # The device attempts a socket.io WebSocket connection for push notifications.
+    # This server does not implement socket.io; return 404 so the device can
+    # fall back gracefully instead of hitting the ASGI catch-all and crashing.
+    return web.Response(status=404, text="Not implemented")
+
+
 @routes.get("/api/csrf")
 @public_route
 async def handle_csrf(request: web.Request) -> web.Response:
