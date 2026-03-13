@@ -117,10 +117,11 @@ class UserService:
         async with self._session_manager.session() as session:
             vfs = VirtualFileSystem(session)
 
-            # System folders at root (directoryId=0) - always visible
-            await vfs.create_directory(user_id, 0, "Export")
-            await vfs.create_directory(user_id, 0, "Inbox")
-            await vfs.create_directory(user_id, 0, "Screenshot")
+            # System folders at root (directoryId=0) - always visible.
+            # Names match Supernote device firmware (all-caps).
+            await vfs.create_directory(user_id, 0, "EXPORT")
+            await vfs.create_directory(user_id, 0, "INBOX")
+            await vfs.create_directory(user_id, 0, "SCREENSHOT")
 
             # Category containers with children (for device firmware compatibility)
             note_parent = await vfs.create_directory(user_id, 0, "NOTE")
