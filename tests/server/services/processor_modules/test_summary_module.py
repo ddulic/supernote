@@ -137,7 +137,7 @@ async def test_summary_success(
     assert transcript_call.args[0] == user_email
     dto = transcript_call.args[1]
     assert isinstance(dto, AddSummaryDTO)
-    assert dto.unique_identifier == get_transcript_id(storage_key)
+    assert dto.unique_identifier == get_transcript_id(str(file_id))
     assert dto.content is not None
     assert "Page 1 text" in dto.content
     assert "Page 2 text" in dto.content
@@ -147,7 +147,7 @@ async def test_summary_success(
     ai_call = mock_summary_service.add_summary.call_args_list[1]
     assert ai_call.args[0] == user_email
     dto_ai = ai_call.args[1]
-    assert dto_ai.unique_identifier == get_summary_id(storage_key)
+    assert dto_ai.unique_identifier == get_summary_id(str(file_id))
     assert "## 2023-10-27" in dto_ai.content
     assert "AI Summary Output" in dto_ai.content
     assert dto_ai.data_source == "GEMINI"
@@ -226,7 +226,9 @@ async def test_summary_idempotency_update(
     mock_gemini_service.generate_content.return_value = mock_response
 
     # Mock Existing Summary
-    existing_summary = SummaryItem(id=11, unique_identifier=get_summary_id(storage_key))
+    existing_summary = SummaryItem(
+        id=11, unique_identifier=get_summary_id(str(file_id))
+    )
     # 1st call (transcript): return None -> calls add_summary
     # 2nd call (ai summary): return existing -> calls update_summary
     mock_summary_service.get_summary_by_uuid.side_effect = [None, existing_summary]
@@ -237,7 +239,7 @@ async def test_summary_idempotency_update(
     # Transcript should be added
     mock_summary_service.add_summary.assert_called_once()
     transcript_dto = mock_summary_service.add_summary.call_args.args[1]
-    assert transcript_dto.unique_identifier == get_transcript_id(storage_key)
+    assert transcript_dto.unique_identifier == get_transcript_id(str(file_id))
 
     # AI Summary should be updated
     mock_summary_service.update_summary.assert_called_once()

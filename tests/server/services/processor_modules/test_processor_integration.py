@@ -179,8 +179,8 @@ async def test_full_processing_pipeline_with_real_file(
         assert len(summaries) >= 2  # At least transcript and AI summary
 
         # Find our specific summaries by unique identifier
-        transcript_uuid = get_transcript_id(storage_key)
-        summary_uuid = get_summary_id(storage_key)
+        transcript_uuid = get_transcript_id(str(file_id))
+        summary_uuid = get_summary_id(str(file_id))
 
         transcript = next(
             (s for s in summaries if s.unique_identifier == transcript_uuid), None
