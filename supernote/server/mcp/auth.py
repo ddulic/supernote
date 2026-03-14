@@ -301,7 +301,11 @@ def create_auth_app(
 
             # Not logged in: Redirect to web UI login page (always on main_base_url,
             # even when this login-bridge is served from the MCP server domain).
-            login_url = f"{main_base_url}/#login?return_to={quote(str(request.url))}"
+            # Use issuer_url to build return_to so the scheme matches the public URL
+            # (e.g. https://), not the internal http:// seen behind a reverse proxy.
+            query_string = str(request.url.query)
+            bridge_url = f"{issuer_url.rstrip('/')}/login-bridge?{query_string}"
+            login_url = f"{main_base_url}/#login?return_to={quote(bridge_url)}"
             return RedirectResponse(url=login_url)
 
         # Extract OAuth params from query
