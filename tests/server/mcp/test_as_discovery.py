@@ -7,8 +7,8 @@ async def test_as_metadata_discovery(
     client: TestClient, server_config: ServerConfig
 ) -> None:
     """Test that the Authorization Server metadata endpoint is accessible."""
-    # The issuer URL in config will be based on the server_port
-    expected_issuer = server_config.base_url
+    # The issuer URL is the MCP server base URL (auth routes are hosted there)
+    expected_issuer = server_config.mcp_base_url
 
     resp = await client.get("/.well-known/oauth-authorization-server")
     assert resp.status == 200, (

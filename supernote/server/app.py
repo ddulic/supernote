@@ -398,9 +398,12 @@ def create_app(config: ServerConfig) -> web.Application:
 
         rs_url = f"{config.mcp_base_url}/mcp"
 
-        logger.info(f"Mounting MCP Authorization Server at {config.base_url}")
+        logger.info(f"Mounting MCP Authorization Server at {config.mcp_base_url}")
         auth_app = create_auth_app(
-            app["user_service"], app["coordination_service"], config.base_url
+            app["user_service"],
+            app["coordination_service"],
+            issuer_url=config.mcp_base_url,
+            main_base_url=config.base_url,
         )
         asgi_resource = ASGIResource(auth_app)
         app.router.register_resource(asgi_resource)
@@ -410,7 +413,14 @@ def create_app(config: ServerConfig) -> web.Application:
             app["search_service"], app["user_service"], app["coordination_service"]
         )
         mcp_port = config.mcp_port
-        mcp_server = create_mcp_server(config.base_url, rs_url)
+        mcp_server = create_mcp_server(config.mcp_base_url, rs_url)
+        # Mount auth routes on the MCP server so clients (e.g. claude.ai) that
+        # look for OAuth discovery endpoints on the same host as /mcp can find them.
+        from starlette.routing import Route as StarletteRoute
+
+        mcp_server._custom_starlette_routes.extend(
+            [r for r in auth_app.routes if isinstance(r, StarletteRoute)]
+        )
         mcp_task = asyncio.create_task(
             run_server(mcp_server, config.host, mcp_port, config.proxy_mode)
         )

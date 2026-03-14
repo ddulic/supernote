@@ -22,9 +22,10 @@ from mcp.shared.auth import (
 )
 from pydantic import AnyHttpUrl, AnyUrl
 from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse
-from starlette.routing import Route
+from starlette.routing import Route, request_response
 
 from supernote.server.services.coordination import CoordinationService
 from supernote.server.services.user import UserService
@@ -223,6 +224,7 @@ def create_auth_app(
     user_service: UserService,
     coordination_service: CoordinationService,
     issuer_url: str,
+    main_base_url: str,
 ) -> Starlette:
     """Create a Starlette app for the MCP Authorization Server."""
     provider = SupernoteOAuthProvider(user_service, coordination_service, issuer_url)
@@ -256,10 +258,6 @@ def create_auth_app(
         methods=["GET", "OPTIONS"],
     )
 
-    app = Starlette(routes=routes, debug=True)
-
-    # Add login-bridge route
-    @app.route("/login-bridge", methods=["GET", "POST"])
     async def login_bridge(request: Request) -> RedirectResponse | JSONResponse:
         """Handling the OAuth login flow bridging the SPA and the MCP server.
 
@@ -282,10 +280,9 @@ def create_auth_app(
             if request.method == "POST":
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-            # Not logged in: Redirect to web UI login page.
-            # We pass the bridge URL as return_to so the SPA knows where to return.
-            # We keep the query params (OAuth params) so they are preserved.
-            login_url = f"/#login?return_to={quote(str(request.url))}"
+            # Not logged in: Redirect to web UI login page (always on main_base_url,
+            # even when this login-bridge is served from the MCP server domain).
+            login_url = f"{main_base_url}/#login?return_to={quote(str(request.url))}"
             return RedirectResponse(url=login_url)
 
         # Extract OAuth params from query
@@ -331,4 +328,19 @@ def create_auth_app(
 
         return JSONResponse({"redirect_url": final_url})
 
-    return app
+    # login-bridge uses CORS so the SPA (potentially on a different origin than
+    # this auth server) can POST the session token back after the user logs in.
+    routes.append(
+        Route(
+            "/login-bridge",
+            endpoint=CORSMiddleware(
+                app=request_response(login_bridge),
+                allow_origins=["*"],
+                allow_methods=["GET", "POST", "OPTIONS"],
+                allow_headers=["x-access-token", "Authorization", "Content-Type"],
+            ),
+            methods=["GET", "POST", "OPTIONS"],
+        )
+    )
+
+    return Starlette(routes=routes, debug=True)
