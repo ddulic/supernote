@@ -142,19 +142,20 @@ class SupernoteOAuthProvider(
         # In a real implementation, we would generate a JWT or random token.
         # For now, we reuse the UserService login logic or just generate a dedicated MCP token.
 
-        access_token = SupernoteAccessToken(
-            token=secrets.token_urlsafe(32),
-            user_id=authorization_code.user_id,
-            client_id=authorization_code.client_id,
-            scopes=authorization_code.scopes,
-            expires_at=int(time.time() + 3600),
-        )
         refresh_token = SupernoteRefreshToken(
             token=secrets.token_urlsafe(32),
             user_id=authorization_code.user_id,
             client_id=authorization_code.client_id,
             scopes=authorization_code.scopes,
             expires_at=int(time.time() + 86400 * 30),
+        )
+        access_token = SupernoteAccessToken(
+            token=secrets.token_urlsafe(32),
+            user_id=authorization_code.user_id,
+            client_id=authorization_code.client_id,
+            scopes=authorization_code.scopes,
+            expires_at=int(time.time() + 3600),
+            refresh_token=refresh_token.token,
         )
 
         # Store tokens
@@ -211,6 +212,7 @@ class SupernoteOAuthProvider(
             client_id=refresh_token.client_id,
             scopes=scopes or refresh_token.scopes,
             expires_at=int(time.time() + 3600),
+            refresh_token=refresh_token.token,
         )
         await self._coordination.set_value(
             f"mcp:access_token:{new_access_token.token}",
@@ -232,7 +234,15 @@ class SupernoteOAuthProvider(
         data = await self._coordination.get_value(key)
         if not data:
             return None
-        return SupernoteAccessToken.model_validate_json(data)
+        access_token = SupernoteAccessToken.model_validate_json(data)
+        # 2. If the access token is linked to a refresh token, verify it hasn't been revoked
+        if access_token.refresh_token:
+            rt_data = await self._coordination.get_value(
+                f"mcp:refresh_token:{access_token.refresh_token}"
+            )
+            if not rt_data:
+                return None
+        return access_token
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
         """Revokes an access or refresh token."""
