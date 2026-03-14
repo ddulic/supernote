@@ -37,6 +37,7 @@ from .models import (
     SupernoteAuthorizationCode,
     SupernoteRefreshToken,
 )
+from .oauth_session import OAuthSessionService
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,10 +71,12 @@ class SupernoteOAuthProvider(
         user_service: UserService,
         coordination_service: CoordinationService,
         issuer_url: str,
+        session_service: OAuthSessionService,
     ):
         self.user_service = user_service
         self.issuer_url = issuer_url
         self._coordination = coordination_service
+        self._sessions = session_service
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         """Retrieve client information by client ID."""
@@ -166,9 +169,14 @@ class SupernoteOAuthProvider(
             ttl=86400 * 30,
         )
 
-        # Delete auth code after use (single use only)
-        # We don't have the string code here easily, but the SDK should handle it if we return successfully.
-        # Actually, let's just let it expire or manually delete it in the bridge if needed.
+        # Register the session so it appears in the UI
+        await self._sessions.register(
+            user_id=authorization_code.user_id,
+            token=refresh_token.token,
+            client_id=authorization_code.client_id,
+            client_name=client.client_name or authorization_code.client_id,
+            expires_at=refresh_token.expires_at or int(time.time() + 86400 * 30),
+        )
 
         return OAuthToken(
             access_token=access_token.token,
@@ -228,8 +236,11 @@ class SupernoteOAuthProvider(
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
         """Revokes an access or refresh token."""
-        # TODO: Implement token revocation in UserService/CoordinationService
-        pass
+        if isinstance(token, SupernoteRefreshToken):
+            await self._coordination.delete_value(f"mcp:refresh_token:{token.token}")
+            await self._sessions.revoke_by_token(token.user_id, token.token)
+        elif isinstance(token, SupernoteAccessToken):
+            await self._coordination.delete_value(f"mcp:access_token:{token.token}")
 
 
 def create_auth_app(
@@ -237,9 +248,12 @@ def create_auth_app(
     coordination_service: CoordinationService,
     issuer_url: str,
     main_base_url: str,
+    session_service: OAuthSessionService,
 ) -> Starlette:
     """Create a Starlette app for the MCP Authorization Server."""
-    provider = SupernoteOAuthProvider(user_service, coordination_service, issuer_url)
+    provider = SupernoteOAuthProvider(
+        user_service, coordination_service, issuer_url, session_service
+    )
     routes = create_auth_routes(
         provider=provider,
         issuer_url=AnyHttpUrl(issuer_url),

@@ -16,6 +16,7 @@ from supernote.models.base import create_error_response
 from supernote.server.db.migrations import run_migrations
 from supernote.server.mcp.api_key import ApiKeyService
 from supernote.server.mcp.auth import create_auth_app
+from supernote.server.mcp.oauth_session import OAuthSessionService
 from supernote.server.mcp.server import create_mcp_server, run_server, set_services
 from supernote.server.utils.auth_utils import get_token_from_request
 
@@ -295,6 +296,7 @@ def create_app(config: ServerConfig) -> web.Application:
     app["file_service"] = file_service
     app["url_signer"] = UrlSigner(config.auth.secret_key, coordination_service)
     app["api_key_service"] = ApiKeyService(coordination_service)
+    app["oauth_session_service"] = OAuthSessionService(coordination_service)
     app["schedule_service"] = ScheduleService(session_manager)
     ai_service: AIService
     if config.mistral_api_key:
@@ -405,6 +407,7 @@ def create_app(config: ServerConfig) -> web.Application:
             app["coordination_service"],
             issuer_url=config.mcp_base_url,
             main_base_url=config.base_url,
+            session_service=app["oauth_session_service"],
         )
         asgi_resource = ASGIResource(auth_app)
         app.router.register_resource(asgi_resource)
