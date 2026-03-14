@@ -235,6 +235,7 @@ async def jwt_auth_middleware(
         or request.path.startswith("/login-bridge")
         or request.path.startswith("/authorize")
         or request.path.startswith("/token")
+        or request.path.startswith("/register")
         or request.path.startswith("/.well-known/")
     ):
         return await handler(request)
