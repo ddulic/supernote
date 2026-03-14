@@ -6,22 +6,25 @@ import time
 from typing import Optional, override
 from urllib.parse import quote, urlencode, urlparse
 
+from mcp.server.auth.handlers.metadata import MetadataHandler
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationParams,
     OAuthAuthorizationServerProvider,
     RefreshToken,
 )
-from mcp.server.auth.routes import create_auth_routes
+from mcp.server.auth.routes import cors_middleware, create_auth_routes
 from mcp.shared.auth import (
     InvalidRedirectUriError,
     OAuthClientInformationFull,
+    OAuthMetadata,
     OAuthToken,
 )
 from pydantic import AnyHttpUrl, AnyUrl
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse
+from starlette.routing import Route
 
 from supernote.server.services.coordination import CoordinationService
 from supernote.server.services.user import UserService
@@ -227,6 +230,32 @@ def create_auth_app(
         provider=provider,
         issuer_url=AnyHttpUrl(issuer_url),
     )
+
+    # The MCP library hardcodes token_endpoint_auth_methods_supported without "none",
+    # but claude.ai and other public clients use PKCE (auth method "none"). Override
+    # routes[0] (the well-known) with a corrected metadata object.
+    base = issuer_url.rstrip("/")
+    fixed_metadata = OAuthMetadata(
+        issuer=AnyHttpUrl(issuer_url),
+        authorization_endpoint=AnyHttpUrl(f"{base}/authorize"),
+        token_endpoint=AnyHttpUrl(f"{base}/token"),
+        response_types_supported=["code"],
+        grant_types_supported=["authorization_code", "refresh_token"],
+        token_endpoint_auth_methods_supported=[
+            "client_secret_post",
+            "client_secret_basic",
+            "none",
+        ],
+        code_challenge_methods_supported=["S256"],
+    )
+    routes[0] = Route(
+        "/.well-known/oauth-authorization-server",
+        endpoint=cors_middleware(
+            MetadataHandler(fixed_metadata).handle, ["GET", "OPTIONS"]
+        ),
+        methods=["GET", "OPTIONS"],
+    )
+
     app = Starlette(routes=routes, debug=True)
 
     # Add login-bridge route
