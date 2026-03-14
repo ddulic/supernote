@@ -14,6 +14,7 @@ from mcp.server.auth.provider import (
     RefreshToken,
 )
 from mcp.server.auth.routes import cors_middleware, create_auth_routes
+from mcp.server.auth.settings import ClientRegistrationOptions
 from mcp.shared.auth import (
     InvalidRedirectUriError,
     OAuthClientInformationFull,
@@ -76,7 +77,13 @@ class SupernoteOAuthProvider(
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         """Retrieve client information by client ID."""
-        # Support dynamic IndieAuth-style clients (Client ID is a URL)
+        # 1. Check coordination service for dynamically registered clients
+        key = f"mcp:client:{client_id}"
+        data = await self._coordination.get_value(key)
+        if data:
+            return SupernoteOAuthClientInformationFull.model_validate_json(data)
+
+        # 2. Fall back to IndieAuth-style clients (client ID is a URL)
         try:
             parsed = urlparse(client_id)
         except ValueError:
@@ -93,8 +100,13 @@ class SupernoteOAuthProvider(
         return None
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
-        """Saves client information as part of registering it."""
-        raise NotImplementedError("Dynamic client registration not supported")
+        """Saves client information as part of dynamic client registration."""
+        key = f"mcp:client:{client_info.client_id}"
+        await self._coordination.set_value(
+            key,
+            client_info.model_dump_json(),
+            ttl=86400 * 365,
+        )
 
     async def authorize(
         self, client: OAuthClientInformationFull, params: AuthorizationParams
@@ -231,6 +243,11 @@ def create_auth_app(
     routes = create_auth_routes(
         provider=provider,
         issuer_url=AnyHttpUrl(issuer_url),
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["supernote:all"],
+            default_scopes=["supernote:all"],
+        ),
     )
 
     # The MCP library hardcodes token_endpoint_auth_methods_supported without "none",
@@ -241,6 +258,7 @@ def create_auth_app(
         issuer=AnyHttpUrl(issuer_url),
         authorization_endpoint=AnyHttpUrl(f"{base}/authorize"),
         token_endpoint=AnyHttpUrl(f"{base}/token"),
+        registration_endpoint=AnyHttpUrl(f"{base}/register"),
         response_types_supported=["code"],
         grant_types_supported=["authorization_code", "refresh_token"],
         token_endpoint_auth_methods_supported=[
@@ -249,6 +267,7 @@ def create_auth_app(
             "none",
         ],
         code_challenge_methods_supported=["S256"],
+        scopes_supported=["supernote:all"],
     )
     routes[0] = Route(
         "/.well-known/oauth-authorization-server",
