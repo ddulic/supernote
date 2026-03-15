@@ -53,14 +53,20 @@ createApp({
         const selectedFile = ref(null);
         const breadcrumbs = ref([{ id: "0", name: "Cloud" }]);
 
-        const BREADCRUMBS_KEY = 'supernote_breadcrumbs';
-        function saveBreadcrumbs() {
-            sessionStorage.setItem(BREADCRUMBS_KEY, JSON.stringify(breadcrumbs.value));
+        function saveBreadcrumbsToUrl() {
+            const encoded = breadcrumbs.value
+                .map(c => `${c.id}:${encodeURIComponent(c.name)}`)
+                .join(',');
+            history.replaceState(null, '', `#nav=${encoded}`);
         }
-        function loadSavedBreadcrumbs() {
+        function loadBreadcrumbsFromUrl() {
+            const hash = window.location.hash.slice(1);
+            if (!hash.startsWith('nav=')) return null;
             try {
-                const saved = sessionStorage.getItem(BREADCRUMBS_KEY);
-                return saved ? JSON.parse(saved) : null;
+                return hash.slice(4).split(',').map(part => {
+                    const colon = part.indexOf(':');
+                    return { id: part.slice(0, colon), name: decodeURIComponent(part.slice(colon + 1)) };
+                });
             } catch { return null; }
         }
 
@@ -72,7 +78,7 @@ createApp({
             if (item.isDirectory) {
                 currentDirectoryId.value = item.id;
                 breadcrumbs.value.push({ id: item.id, name: item.name });
-                saveBreadcrumbs();
+                saveBreadcrumbsToUrl();
                 selectedIds.value = [];
                 await loadDirectory(item.id);
             } else {
@@ -84,7 +90,7 @@ createApp({
         async function navigateTo(index) {
             const crumbs = breadcrumbs.value.slice(0, index + 1);
             breadcrumbs.value = crumbs;
-            saveBreadcrumbs();
+            saveBreadcrumbsToUrl();
             const target = crumbs[crumbs.length - 1];
             view.value = 'grid';
             selectedIds.value = [];
@@ -197,7 +203,7 @@ createApp({
 
             // Normal app session
             isLoggedIn.value = true;
-            const savedCrumbs = loadSavedBreadcrumbs();
+            const savedCrumbs = loadBreadcrumbsFromUrl();
             if (savedCrumbs && savedCrumbs.length > 0) {
                 breadcrumbs.value = savedCrumbs;
                 currentDirectoryId.value = savedCrumbs[savedCrumbs.length - 1].id;
