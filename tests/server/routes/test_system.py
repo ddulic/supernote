@@ -82,3 +82,44 @@ async def test_health_endpoint(client: TestClient) -> None:
     assert resp.status == aiohttp.web.HTTPOk.status_code
     text = await resp.text()
     assert "Supernote" in text
+
+
+@pytest.mark.asyncio
+async def test_base_param_returns_server_config(client: TestClient) -> None:
+    """Device reads server limits and allowed file types."""
+    resp = await client.post("/api/official/system/base/param")
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+    params = {p["name"]: p["value"] for p in data["paramList"]}
+    assert "MAX_ERR_COUNTS" in params
+    assert "FILE_MAX" in params
+    assert "FILE_TYPE" in params
+    assert "note" in params["FILE_TYPE"]
+
+
+@pytest.mark.asyncio
+async def test_query_server_returns_success(client: TestClient) -> None:
+    """Device uses this endpoint to confirm it is talking to a Supernote server."""
+    resp = await client.get("/api/file/query/server")
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_csrf_returns_token_header(client: TestClient) -> None:
+    """CSRF endpoint returns a token in the X-XSRF-TOKEN response header."""
+    resp = await client.get("/api/csrf")
+    assert resp.status == 200
+    token = resp.headers.get("X-XSRF-TOKEN")
+    assert token is not None
+    assert len(token) > 0
+
+
+@pytest.mark.asyncio
+async def test_csrf_tokens_are_unique(client: TestClient) -> None:
+    """Each call to /api/csrf returns a different token."""
+    resp1 = await client.get("/api/csrf")
+    resp2 = await client.get("/api/csrf")
+    assert resp1.headers["X-XSRF-TOKEN"] != resp2.headers["X-XSRF-TOKEN"]

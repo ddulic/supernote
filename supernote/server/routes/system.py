@@ -3,7 +3,6 @@ import json
 import logging
 import secrets
 
-import aiohttp
 from aiohttp import web
 
 from supernote.models.base import BaseResponse
@@ -88,11 +87,8 @@ async def handle_socketio(request: web.Request) -> web.WebSocketResponse:
 
     ping_task = asyncio.create_task(_ping_loop())
     try:
-        async for msg in ws:
-            if msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):
-                break
-    except Exception as exc:
-        logger.debug("socket.io connection error for sid=%s: %s", sid, exc)
+        async for _msg in ws:
+            pass
     finally:
         ping_task.cancel()
         try:
