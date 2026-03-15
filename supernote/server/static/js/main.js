@@ -58,13 +58,11 @@ createApp({
             if (view.value === 'viewer' && selectedFile.value) {
                 segments.push(encodeURIComponent(selectedFile.value.name));
             }
-            const hash = segments.length > 0 ? '#/' + segments.join('/') : '';
-            history.replaceState(null, '', hash || window.location.pathname);
+            const path = segments.length > 0 ? '/' + segments.join('/') : '/';
+            history.replaceState(null, '', path);
         }
         async function restoreNavFromUrl() {
-            const hash = window.location.hash.slice(1);
-            if (!hash.startsWith('/')) return false;
-            const segments = hash.slice(1).split('/').filter(Boolean).map(decodeURIComponent);
+            const segments = window.location.pathname.slice(1).split('/').filter(Boolean).map(decodeURIComponent);
             if (segments.length === 0) return false;
 
             let currentId = "0";

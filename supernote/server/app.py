@@ -371,6 +371,12 @@ def create_app(config: ServerConfig) -> web.Application:
     app.router.add_get("/", handle_index)
     app.router.add_static("/static/", path=static_path, name="static")
 
+    @public_route
+    async def handle_spa_fallback(request: web.Request) -> web.FileResponse:
+        return web.FileResponse(static_path / "index.html")
+
+    app.router.add_get("/{path_info:.*}", handle_spa_fallback)
+
     # Register Middlewares
     async def on_startup_handler(app: web.Application) -> None:
         # Configure proxy middleware based on config
