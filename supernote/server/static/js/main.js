@@ -53,6 +53,17 @@ createApp({
         const selectedFile = ref(null);
         const breadcrumbs = ref([{ id: "0", name: "Cloud" }]);
 
+        const BREADCRUMBS_KEY = 'supernote_breadcrumbs';
+        function saveBreadcrumbs() {
+            sessionStorage.setItem(BREADCRUMBS_KEY, JSON.stringify(breadcrumbs.value));
+        }
+        function loadSavedBreadcrumbs() {
+            try {
+                const saved = sessionStorage.getItem(BREADCRUMBS_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch { return null; }
+        }
+
         const folders = computed(() => files.value.filter(f => f.isDirectory));
         const regularFiles = computed(() => files.value.filter(f => !f.isDirectory));
 
@@ -61,6 +72,7 @@ createApp({
             if (item.isDirectory) {
                 currentDirectoryId.value = item.id;
                 breadcrumbs.value.push({ id: item.id, name: item.name });
+                saveBreadcrumbs();
                 selectedIds.value = [];
                 await loadDirectory(item.id);
             } else {
@@ -72,6 +84,7 @@ createApp({
         async function navigateTo(index) {
             const crumbs = breadcrumbs.value.slice(0, index + 1);
             breadcrumbs.value = crumbs;
+            saveBreadcrumbs();
             const target = crumbs[crumbs.length - 1];
             view.value = 'grid';
             selectedIds.value = [];
@@ -184,7 +197,14 @@ createApp({
 
             // Normal app session
             isLoggedIn.value = true;
-            await loadDirectory();
+            const savedCrumbs = loadSavedBreadcrumbs();
+            if (savedCrumbs && savedCrumbs.length > 0) {
+                breadcrumbs.value = savedCrumbs;
+                currentDirectoryId.value = savedCrumbs[savedCrumbs.length - 1].id;
+                await loadDirectory(currentDirectoryId.value);
+            } else {
+                await loadDirectory();
+            }
             return true;
         }
 
