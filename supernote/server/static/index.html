@@ -167,7 +167,7 @@
 
                 <!-- Viewer -->
                 <div v-if="view === 'viewer'" class="min-h-full">
-                    <file-viewer :file="selectedFile" @close="view = 'grid'"></file-viewer>
+                    <file-viewer :file="selectedFile" @close="closeViewer"></file-viewer>
                 </div>
 
                 <!-- Modals -->
@@ -191,7 +191,7 @@
         </main>
     </div>
     <!-- Load Main Module -->
-    <script type="module" src="/static/js/main.js"></script>
+    <script type="module" src="/static/js/main.js?v=2"></script>
 </body>
 
 </html>
