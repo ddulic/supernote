@@ -5,12 +5,26 @@
     outline: 2px solid black;
     outline-offset: 2px;
 }
+.dark :focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
 :focus:not(:focus-visible) {
     outline: none;
 }
 
 body {
     font-family: 'Inter', sans-serif;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+    transform: translateX(1rem);
 }
 
 .animate-pulse-slow {
