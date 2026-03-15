@@ -112,7 +112,7 @@ export async function fetchFiles(directoryId = "0", pageNo = 1, pageSize = 50) {
             }
             throw new Error("Unauthorized");
         }
-        throw new Error(`Failed to fetch files: ${response.statusText}`);
+        throw new Error(`Failed to fetch files: ${response.status}`);
     }
 
     const data = await response.json();
@@ -159,7 +159,7 @@ export async function convertNoteToPng(fileId) {
             logout();
             throw new Error("Unauthorized");
         }
-        throw new Error(`Conversion failed: ${response.statusText}`);
+        throw new Error(`Conversion failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -190,7 +190,7 @@ export async function fetchSummaries(fileId) {
             logout();
             throw new Error("Unauthorized");
         }
-        throw new Error(`Summary fetch failed: ${response.statusText}`);
+        throw new Error(`Summary fetch failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -219,7 +219,7 @@ export async function fetchSystemTasks() {
     }
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch system tasks: ${response.statusText}`);
+        throw new Error(`Failed to fetch system tasks: ${response.status}`);
     }
 
     return await response.json();
@@ -248,7 +248,7 @@ export async function fetchCapacity() {
     }
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch capacity: ${response.statusText}`);
+        throw new Error(`Failed to fetch capacity: ${response.status}`);
     }
 
     return await response.json();
@@ -274,7 +274,7 @@ export async function createFolder(directoryId, folderName) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to create folder: ${response.statusText}`);
+        throw new Error(`Failed to create folder: ${response.status}`);
     }
 
     return await response.json();
@@ -300,7 +300,7 @@ export async function deleteItems(directoryId, idList) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to delete items: ${response.statusText}`);
+        throw new Error(`Failed to delete items: ${response.status}`);
     }
 
     return await response.json();
@@ -327,7 +327,7 @@ export async function moveItems(idList, targetDirectoryId) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to move items: ${response.statusText}`);
+        throw new Error(`Failed to move items: ${response.status}`);
     }
 
     return await response.json();
@@ -353,7 +353,7 @@ export async function renameItem(id, newName) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to rename item: ${response.statusText}`);
+        throw new Error(`Failed to rename item: ${response.status}`);
     }
 
     return await response.json();
@@ -381,7 +381,7 @@ async function uploadApply(directoryId, fileName, size, md5) {
     });
 
     if (!response.ok) {
-        throw new Error(`Upload apply failed: ${response.statusText}`);
+        throw new Error(`Upload apply failed: ${response.status}`);
     }
 
     return await response.json();
@@ -411,7 +411,7 @@ async function uploadFinish(directoryId, fileName, size, md5, innerName) {
     });
 
     if (!response.ok) {
-        throw new Error(`Upload finish failed: ${response.statusText}`);
+        throw new Error(`Upload finish failed: ${response.status}`);
     }
 
     return await response.json();
@@ -440,7 +440,7 @@ export async function uploadFile(directoryId, file, onProgress) {
     });
 
     if (!uploadResp.ok) {
-        throw new Error(`File binary upload failed: ${uploadResp.statusText}`);
+        throw new Error(`File binary upload failed: ${uploadResp.status}`);
     }
 
     // 4. Finish
@@ -474,7 +474,7 @@ export async function fetchApiKeys() {
     });
 
     if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
-    if (!response.ok) throw new Error(`Failed to fetch API keys: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Failed to fetch API keys: ${response.status}`);
     return await response.json();
 }
 
@@ -489,7 +489,7 @@ export async function createApiKey(name) {
     });
 
     if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
-    if (!response.ok) throw new Error(`Failed to create API key: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Failed to create API key: ${response.status}`);
     return await response.json();
 }
 
@@ -503,7 +503,7 @@ export async function deleteApiKey(keyId) {
     });
 
     if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
-    if (!response.ok) throw new Error(`Failed to delete API key: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Failed to delete API key: ${response.status}`);
 }
 
 /**
@@ -519,7 +519,7 @@ export async function fetchOAuthSessions() {
     });
 
     if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
-    if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.status}`);
     return await response.json();
 }
 
@@ -533,7 +533,7 @@ export async function deleteOAuthSession(sessionId) {
     });
 
     if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
-    if (!response.ok) throw new Error(`Failed to revoke session: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Failed to revoke session: ${response.status}`);
 }
 
 /**
@@ -560,7 +560,7 @@ export async function fetchProcessingStatus(fileIds) {
     }
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch processing status: ${response.statusText}`);
+        throw new Error(`Failed to fetch processing status: ${response.status}`);
     }
 
     const data = await response.json();
