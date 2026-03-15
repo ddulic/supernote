@@ -1,4 +1,7 @@
 import { fetchApiKeys, createApiKey, deleteApiKey } from '../api/client.js';
+import { useToast } from '../composables/useToast.js';
+
+const { addToast } = useToast();
 
 export default {
     name: 'ApiKeysPanel',
@@ -146,7 +149,7 @@ export default {
                 this.keys = this.keys.filter(k => k.id !== key.id);
                 if (this.newKey) this.newKey = null;
             } catch (e) {
-                alert('Failed to revoke key: ' + e.message);
+                addToast('Failed to revoke key', e.message);
             } finally {
                 this.deletingId = null;
             }
@@ -157,7 +160,7 @@ export default {
                 this.copied = true;
                 setTimeout(() => { this.copied = false; }, 2000);
             } catch (e) {
-                alert('Copy failed — please select and copy manually.');
+                addToast('Copy failed', 'Please select and copy manually.');
             }
         },
         formatDate(ms) {

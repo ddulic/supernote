@@ -1,5 +1,6 @@
 import { createApp, ref, onMounted, computed } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
 import { useFileSystem } from './composables/useFileSystem.js';
+import { useToast } from './composables/useToast.js';
 import { setToken, getToken, login, logout, fetchProcessingStatus } from './api/client.js';
 import FileCard from './components/FileCard.js';
 import LoginCard from './components/LoginCard.js';
@@ -8,6 +9,7 @@ import SystemPanel from './components/SystemPanel.js';
 import ApiKeysPanel from './components/ApiKeysPanel.js';
 import MoveModal from './components/MoveModal.js';
 import RenameModal from './components/RenameModal.js';
+import ToastContainer from './components/ToastContainer.js';
 
 createApp({
     components: {
@@ -17,9 +19,13 @@ createApp({
         SystemPanel,
         ApiKeysPanel,
         MoveModal,
-        RenameModal
+        RenameModal,
+        ToastContainer
     },
     setup() {
+        // Toast
+        const { addToast } = useToast();
+
         // Theme
         const isDarkMode = ref(localStorage.getItem('theme') === 'dark');
         function applyTheme(dark) {
@@ -155,7 +161,7 @@ createApp({
                 showNewFolderModal.value = false;
                 newFolderName.value = '';
             } catch (e) {
-                alert("Failed to create folder: " + e.message);
+                addToast('Failed to create folder', e.message);
             }
         }
 
@@ -170,7 +176,7 @@ createApp({
             try {
                 await uploadFiles(selectedFiles);
             } catch (e) {
-                alert("Upload failed: " + e.message);
+                addToast('Upload failed', e.message);
             } finally {
                 event.target.value = ''; // Reset input
             }
@@ -182,7 +188,7 @@ createApp({
                 await deleteSelectedItems(selectedIds.value);
                 selectedIds.value = [];
             } catch (e) {
-                alert("Delete failed: " + e.message);
+                addToast('Delete failed', e.message);
             }
         }
 
@@ -196,7 +202,7 @@ createApp({
                 selectedIds.value = [];
                 showMoveModal.value = false;
             } catch (e) {
-                alert("Move failed: " + e.message);
+                addToast('Move failed', e.message);
             }
         }
 
@@ -211,7 +217,7 @@ createApp({
                 showRenameModal.value = false;
                 itemToRename.value = null;
             } catch (e) {
-                alert("Rename failed: " + e.message);
+                addToast('Rename failed', e.message);
             }
         }
 
@@ -256,7 +262,7 @@ createApp({
                 await resumeSession();
             } catch (e) {
                 loginError.value = e.message;
-                alert(e.message);
+                addToast('Login failed', e.message);
             }
         }
 
