@@ -99,3 +99,34 @@ def test_server_config_proxy_env_vars(tmp_path: Path) -> None:
         assert config.proxy_mode == "strict"
         # The list should be parsed from the comma-separated string
         assert config.trusted_proxies == ["10.0.0.1", "10.0.0.2"]
+
+
+def test_server_config_temp_cleanup_env_vars(tmp_path: Path) -> None:
+    """Test that temp cleanup configuration can be set via environment variables."""
+    config_dir = tmp_path / "config"
+    with patch.dict(
+        os.environ,
+        {
+            "SUPERNOTE_TEMP_CLEANUP_INTERVAL": "1800",
+            "SUPERNOTE_TEMP_TTL": "3600",
+        },
+    ):
+        config = ServerConfig.load(config_dir)
+        assert config.temp_cleanup_interval_seconds == 1800
+        assert config.temp_ttl_seconds == 3600
+
+
+def test_server_config_default_quota_env_var(tmp_path: Path) -> None:
+    """Test that default quota can be set via environment variable."""
+    config_dir = tmp_path / "config"
+    with patch.dict(os.environ, {"SUPERNOTE_DEFAULT_QUOTA_BYTES": "5368709120"}):
+        config = ServerConfig.load(config_dir)
+        assert config.default_quota_bytes == 5368709120  # 5 GB
+
+
+def test_server_config_quota_env_var_invalid_value(tmp_path: Path) -> None:
+    """Invalid (non-integer) quota env var should fall back to the default."""
+    config_dir = tmp_path / "config"
+    with patch.dict(os.environ, {"SUPERNOTE_DEFAULT_QUOTA_BYTES": "not-a-number"}):
+        config = ServerConfig.load(config_dir)
+        assert config.default_quota_bytes == 10737418240  # default 10 GB

@@ -1,8 +1,10 @@
 """Tests for TempFileCleanupService."""
 
 import asyncio
+import os
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -146,3 +148,102 @@ async def test_service_stop_is_idempotent(
     await service.stop()
     # Second stop should be a no-op
     await service.stop()
+
+
+async def test_run_once_handles_missing_scan_dir(tmp_path: Path) -> None:
+    """run_once should not raise if the scan directory does not exist."""
+    missing = tmp_path / "does_not_exist"
+    service = TempFileCleanupService(scan_dir=missing, ttl_seconds=60)
+    # Should return without error even though the directory is absent
+    await service.run_once()
+    assert not missing.exists()
+
+
+async def test_run_once_handles_file_disappearing_between_stat_and_unlink(
+    temp_dir: Path,
+) -> None:
+    """FileNotFoundError from stat() should be silently ignored."""
+    chunk = temp_dir / "race.part.1"
+    chunk.write_bytes(b"data")
+    old_mtime = time.time() - 120
+    os.utime(chunk, (old_mtime, old_mtime))
+
+    original_stat = Path.stat
+
+    def stat_then_delete(self: Path, **kwargs: object) -> object:
+        result = original_stat(self)
+        # Simulate the file vanishing between is_file()/stat() and unlink()
+        self.unlink(missing_ok=True)
+        return result
+
+    service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
+    with patch.object(Path, "stat", stat_then_delete):
+        await service.run_once()  # Should not raise
+
+
+async def test_run_once_handles_unexpected_exception_during_delete(
+    temp_dir: Path,
+) -> None:
+    """Unexpected exceptions from stat() should be logged, not propagated."""
+    chunk = temp_dir / "broken.part.2"
+    chunk.write_bytes(b"data")
+    old_mtime = time.time() - 120
+    os.utime(chunk, (old_mtime, old_mtime))
+
+    service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
+
+    with patch.object(Path, "stat", side_effect=PermissionError("denied")):
+        await service.run_once()  # Should not raise
+
+    # File should still exist since stat() failed before unlink
+    assert chunk.exists()
+
+
+async def test_cleanup_loop_calls_run_once(temp_dir: Path) -> None:
+    """The cleanup loop should call run_once() after each interval elapses."""
+    service = TempFileCleanupService(
+        scan_dir=temp_dir,
+        ttl_seconds=60,
+        interval_seconds=0,  # 0-second sleep so the loop body executes immediately
+    )
+
+    call_count = 0
+
+    async def mock_run_once() -> None:
+        nonlocal call_count
+        call_count += 1
+        service._shutdown_event.set()  # Stop the loop after first run
+
+    service.run_once = mock_run_once  # type: ignore[method-assign]
+
+    await service.start()
+    await asyncio.sleep(0.05)
+    await service.stop()
+
+    assert call_count >= 1, "run_once() should have been called by the cleanup loop"
+
+
+async def test_cleanup_loop_handles_run_once_exception(temp_dir: Path) -> None:
+    """An exception raised by run_once() should be logged, not crash the loop."""
+    service = TempFileCleanupService(
+        scan_dir=temp_dir,
+        ttl_seconds=60,
+        interval_seconds=0,
+    )
+
+    call_count = 0
+
+    async def failing_run_once() -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("transient error")
+        service._shutdown_event.set()
+
+    service.run_once = failing_run_once  # type: ignore[method-assign]
+
+    await service.start()
+    await asyncio.sleep(0.05)
+    await service.stop()
+
+    assert call_count >= 2, "Loop should have continued after run_once raised"
