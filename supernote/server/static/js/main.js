@@ -111,11 +111,18 @@ createApp({
         async function navigateTo(index) {
             const crumbs = breadcrumbs.value.slice(0, index + 1);
             breadcrumbs.value = crumbs;
+            view.value = 'grid';
+            selectedFile.value = null;
+            selectedIds.value = [];
             saveNavToUrl();
             const target = crumbs[crumbs.length - 1];
-            view.value = 'grid';
-            selectedIds.value = [];
             await loadDirectory(target.id);
+        }
+
+        function closeViewer() {
+            view.value = 'grid';
+            selectedFile.value = null;
+            saveNavToUrl();
         }
 
         // Selection
@@ -286,6 +293,7 @@ createApp({
             breadcrumbs,
             openItem,
             navigateTo,
+            closeViewer,
             selectedFile,
             showSystemPanel,
             showApiKeysPanel,
