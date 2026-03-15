@@ -307,5 +307,13 @@ async def test_run_once_ignores_stat_file_not_found(temp_dir: Path) -> None:
 
     service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
 
-    with patch.object(Path, "stat", side_effect=FileNotFoundError("already gone")):
+    original_stat = Path.stat
+
+    def stat_raising(self: Path, *args: object, **kwargs: object) -> object:
+        # Only raise for .part. files; let other stat calls (e.g. exists()) work normally
+        if ".part." in self.name:
+            raise FileNotFoundError("already gone")
+        return original_stat(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with patch.object(Path, "stat", stat_raising):
         await service.run_once()  # Must not raise
