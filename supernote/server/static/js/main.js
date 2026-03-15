@@ -162,7 +162,7 @@ createApp({
                 showNewFolderModal.value = false;
                 newFolderName.value = '';
             } catch (e) {
-                addToast('Failed to create folder', e.message);
+                addToast(`Failed to create folder "${newFolderName.value}"`, e.message);
             }
         }
 
@@ -177,7 +177,8 @@ createApp({
             try {
                 await uploadFiles(selectedFiles);
             } catch (e) {
-                addToast('Upload failed', e.message);
+                const names = Array.from(selectedFiles).map(f => f.name).join(', ');
+                addToast(`Upload failed: ${names}`, e.message);
             } finally {
                 event.target.value = ''; // Reset input
             }
@@ -189,7 +190,8 @@ createApp({
                 await deleteSelectedItems(selectedIds.value);
                 selectedIds.value = [];
             } catch (e) {
-                addToast('Delete failed', e.message);
+                const names = files.value.filter(f => selectedIds.value.includes(f.id)).map(f => f.name).join(', ');
+                addToast(`Delete failed: ${names}`, e.message);
             }
         }
 
@@ -203,7 +205,8 @@ createApp({
                 selectedIds.value = [];
                 showMoveModal.value = false;
             } catch (e) {
-                addToast('Move failed', e.message);
+                const names = files.value.filter(f => selectedIds.value.includes(f.id)).map(f => f.name).join(', ');
+                addToast(`Move failed: ${names}`, e.message);
             }
         }
 
@@ -218,7 +221,7 @@ createApp({
                 showRenameModal.value = false;
                 itemToRename.value = null;
             } catch (e) {
-                addToast('Rename failed', e.message);
+                addToast(`Rename failed: "${itemToRename.value.name}" → "${newName}"`, e.message);
             }
         }
 

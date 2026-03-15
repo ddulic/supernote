@@ -163,14 +163,6 @@
                     </div>
                 </div>
 
-                <!-- Error State -->
-                <div v-if="error" class="bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded mb-6">
-                    {{ error }}
-                    <div v-if="error === 'Unauthorized'" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Please log in via the CLI or check your token.
-                    </div>
-                </div>
-
                 <!-- Loading State -->
                 <div v-if="isLoading" class="flex justify-center py-20">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-black dark:border-white"></div>
