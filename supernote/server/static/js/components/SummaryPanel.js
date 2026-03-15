@@ -54,14 +54,14 @@ export default {
         };
     },
     template: `
-    <div class="h-full flex flex-col bg-white border-l border-gray-200 w-full md:w-96">
+    <div class="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 w-full md:w-96">
         <!-- Header -->
-        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <h3 class="font-semibold text-black flex items-center gap-2">
-                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
+            <h3 class="font-semibold text-black dark:text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 AI Insights
             </h3>
-            <button @click="$emit('close')" class="text-gray-400 hover:text-black">
+            <button @click="$emit('close')" class="text-gray-400 hover:text-black dark:hover:text-white">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
@@ -70,12 +70,12 @@ export default {
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
             <!-- Loading -->
             <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black mb-3"></div>
-                <p class="text-sm text-gray-500">Thinking...</p>
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-3"></div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Thinking...</p>
             </div>
 
             <!-- Error -->
-            <div v-if="error" class="bg-gray-100 text-black border border-gray-300 p-4 rounded text-sm">
+            <div v-if="error" class="bg-gray-100 dark:bg-gray-700 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded text-sm">
                 {{ error }}
             </div>
 
@@ -86,14 +86,14 @@ export default {
             </div>
 
             <!-- List -->
-            <div v-for="item in summaries" :key="item.id" class="bg-gray-50 rounded p-4 border border-gray-200">
+            <div v-for="item in summaries" :key="item.id" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold px-2 py-1 rounded bg-white text-gray-600 border border-gray-200 capitalize">
+                    <span class="text-xs font-semibold px-2 py-1 rounded bg-white dark:bg-gray-600 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-500 capitalize">
                         {{ item.dataSource || 'Unknown' }}
                     </span>
                     <span class="text-xs text-gray-400">{{ formatDate(item.creationTime) }}</span>
                 </div>
-                <div class="prose prose-sm max-w-none text-gray-700" v-html="formatContent(item.content)"></div>
+                <div class="prose prose-sm max-w-none text-gray-700 dark:text-gray-300" v-html="formatContent(item.content)"></div>
             </div>
         </div>
     </div>

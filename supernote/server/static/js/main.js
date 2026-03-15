@@ -20,6 +20,18 @@ createApp({
         RenameModal
     },
     setup() {
+        // Theme
+        const isDarkMode = ref(localStorage.getItem('theme') === 'dark');
+        function applyTheme(dark) {
+            document.documentElement.classList.toggle('dark', dark);
+        }
+        function toggleTheme() {
+            isDarkMode.value = !isDarkMode.value;
+            localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+            applyTheme(isDarkMode.value);
+        }
+        applyTheme(isDarkMode.value);
+
         // Auth State — initialize synchronously to avoid flashing the login form
         const isLoggedIn = ref(!!getToken());
         const loginError = ref(null);
@@ -280,6 +292,8 @@ createApp({
         });
 
         return {
+            isDarkMode,
+            toggleTheme,
             isLoggedIn,
             handleLogin,
             handleLogout,
