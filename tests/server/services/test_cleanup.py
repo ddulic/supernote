@@ -310,8 +310,9 @@ async def test_run_once_ignores_stat_file_not_found(temp_dir: Path) -> None:
     original_stat = Path.stat
 
     def stat_raising(self: Path, *args: object, **kwargs: object) -> object:
-        # Only raise for .part. files; let other stat calls (e.g. exists()) work normally
-        if ".part." in self.name:
+        # is_file() passes follow_symlinks as a keyword arg; the direct stat() call
+        # at line 88 of cleanup.py passes no kwargs — raise only for that case.
+        if ".part." in self.name and "follow_symlinks" not in kwargs:
             raise FileNotFoundError("already gone")
         return original_stat(self, *args, **kwargs)  # type: ignore[arg-type]
 
