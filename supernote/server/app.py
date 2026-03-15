@@ -268,6 +268,17 @@ def create_coordination_service(
     return SqliteCoordinationService(session_manager)
 
 
+@web.middleware
+async def no_cache_static_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    response = await handler(request)
+    if request.path.startswith("/static/js/") or request.path == "/static/style.css":
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 def create_app(config: ServerConfig) -> web.Application:
     app = web.Application(client_max_size=MAX_UPLOAD_SIZE)
     app["config"] = config
@@ -419,6 +430,7 @@ def create_app(config: ServerConfig) -> web.Application:
         # Register trace and auth middlewares after proxy setup to avoid clone errors
         app.middlewares.append(trace_middleware)
         app.middlewares.append(jwt_auth_middleware)
+        app.middlewares.append(no_cache_static_middleware)
 
         logger.info("Running database migrations...")
         await asyncio.to_thread(run_migrations, config.db_url)
