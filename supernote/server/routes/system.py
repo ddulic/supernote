@@ -1,11 +1,17 @@
+import asyncio
+import json
+import logging
 import secrets
 
+import aiohttp
 from aiohttp import web
 
 from supernote.models.base import BaseResponse
 from supernote.models.system import ReferenceInfoVO, ReferenceRespVO
 
 from .decorators import public_route
+
+logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
 
@@ -49,11 +55,52 @@ async def handle_query_server(request: web.Request) -> web.Response:
 
 @routes.get("/socket.io/")
 @public_route
-async def handle_socketio(request: web.Request) -> web.Response:
-    # The device attempts a socket.io WebSocket connection for push notifications.
-    # This server does not implement socket.io; return 404 so the device can
-    # fall back gracefully instead of hitting the ASGI catch-all and crashing.
-    return web.Response(status=404, text="Not implemented")
+async def handle_socketio(request: web.Request) -> web.WebSocketResponse:
+    # The device connects via Socket.IO (Engine.IO v3) for push notifications.
+    # We don't push anything, but we must accept the connection and maintain
+    # ping/pong keepalive — otherwise the device reports sync failure.
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    sid = secrets.token_hex(8)
+    ping_interval = 25  # seconds
+
+    # Engine.IO v3 OPEN packet
+    open_payload = json.dumps(
+        {
+            "sid": sid,
+            "upgrades": [],
+            "pingInterval": ping_interval * 1000,
+            "pingTimeout": 5000,
+        }
+    )
+    await ws.send_str(f"0{open_payload}")
+    # Socket.IO v2 connect to default namespace
+    await ws.send_str("40")
+
+    async def _ping_loop() -> None:
+        while not ws.closed:
+            await asyncio.sleep(ping_interval)
+            try:
+                await ws.send_str("2")  # Engine.IO PING
+            except Exception:
+                break
+
+    ping_task = asyncio.create_task(_ping_loop())
+    try:
+        async for msg in ws:
+            if msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):
+                break
+    except Exception as exc:
+        logger.debug("socket.io connection error for sid=%s: %s", sid, exc)
+    finally:
+        ping_task.cancel()
+        try:
+            await ping_task
+        except asyncio.CancelledError:
+            pass
+
+    return ws
 
 
 @routes.get("/api/csrf")
