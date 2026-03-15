@@ -52,12 +52,6 @@ class SqliteCoordinationService(CoordinationService):
     def __init__(self, session_manager: DatabaseSessionManager) -> None:
         self._session_manager = session_manager
 
-    async def _cleanup(self) -> None:
-        """Cleanup expired keys."""
-        # This could be run periodically or on access.
-        # For simplicity, we trust on-access checks or external cleanup jobs.
-        pass
-
     async def set_value(self, key: str, value: str, ttl: int | None = None) -> None:
         """Set a key-value pair with optional TTL."""
         async with self._session_manager.session() as session:

@@ -23,6 +23,10 @@ class UserDO(Base):
     avatar: Mapped[str | None] = mapped_column(String, nullable=True)
     total_capacity: Mapped[str] = mapped_column(String, default=str(DEFAULT_QUOTA))
 
+    used_capacity: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+
     is_admin: Mapped[bool] = mapped_column(default=False)
     """Allows the user to perform admin actions, auto enabled for first user."""
 

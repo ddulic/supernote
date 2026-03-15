@@ -46,6 +46,7 @@ from supernote.server.services.file import (
     FileEntity,
     FileService,
 )
+from supernote.server.services.user import UserService
 from supernote.server.utils.paths import generate_inner_name
 from supernote.server.utils.url_signer import UrlSigner
 
@@ -280,6 +281,24 @@ async def handle_upload_apply(request: web.Request) -> web.Response:
 
     req_data = FileUploadApplyLocalDTO.from_dict(await request.json())
     file_name = req_data.file_name
+    user_email = request["user"]
+
+    # T022: Quota check before generating upload URL
+    _user_service: UserService = request.app["user_service"]
+    _user_do = await _user_service.get_user_by_email(user_email)
+    if _user_do is not None:
+        _requested_size = int(req_data.size) if req_data.size else 0
+        _used = _user_do.used_capacity
+        _total = int(_user_do.total_capacity)
+        if _used + _requested_size > _total:
+            return web.json_response(
+                {
+                    "errorCode": "E0507",
+                    "errorMsg": "Storage quota exceeded",
+                    "success": False,
+                },
+                status=507,
+            )
 
     try:
         url_signer: UrlSigner = request.app["url_signer"]

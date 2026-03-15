@@ -146,18 +146,36 @@ class VirtualFileSystem:
         return result.scalar_one_or_none()
 
     async def delete_node(self, user_id: int, node_id: int) -> bool:
-        """Soft delete a file/folder."""
+        """Soft delete a file/folder.
+
+        If the node is a folder, all active descendants are recursively
+        soft-deleted in the same transaction.  A RecycleFileDO entry is
+        created for every file node (but not for folder nodes).
+        """
         node = await self.get_node_by_id(user_id, node_id)
         if not node:
             return False
 
-        # TODO: Handle recursive soft delete for folders?
-        # For now, just mark the node.
-
-        node.is_active = "N"
-
-        # Create recycle bin entry
         now_ms = int(time.time() * 1000)
+
+        # Recursively soft-delete all active descendants first.
+        if node.is_folder == "Y":
+            descendants = await self.list_recursive(user_id, node.id)
+            for descendant, _ in descendants:
+                descendant.is_active = "N"
+                if descendant.is_folder == "N":
+                    recycle = RecycleFileDO(
+                        user_id=user_id,
+                        file_id=descendant.id,
+                        file_name=descendant.file_name,
+                        size=descendant.size,
+                        is_folder=descendant.is_folder,
+                        delete_time=now_ms,
+                    )
+                    self.db.add(recycle)
+
+        # Soft-delete the node itself and always add a recycle bin entry.
+        node.is_active = "N"
         recycle = RecycleFileDO(
             user_id=user_id,
             file_id=node.id,
@@ -338,7 +356,34 @@ class VirtualFileSystem:
         autorename: bool,
         new_name: str,
     ) -> UserFileDO | None:
-        """Copy a node recursively."""
+        """Copy a node (file or folder) to a new parent directory.
+
+        Recursive behaviour:
+            When the source node is a folder the entire subtree is copied
+            depth-first.  Each child is copied with ``autorename=False`` so
+            that names inside the cloned tree are preserved exactly.
+
+        Autorename semantics:
+            If ``autorename=True`` and a node with ``new_name`` already exists
+            under ``new_parent_id``, the copy is placed with a disambiguated
+            name of the form ``<base>(<n>)<ext>`` (e.g. ``report(1).note``).
+            The counter increments until a free name is found, up to a maximum
+            of 100 attempts after which ``FileAlreadyExists`` is raised.
+            If ``autorename=False`` and the name collides, ``FileAlreadyExists``
+            is raised immediately.
+
+        CAS storage-key sharing:
+            Copied file nodes reference the **same** ``storage_key`` as the
+            original.  Content is stored in a content-addressable store (CAS),
+            so no data duplication occurs on disk; only the VFS metadata entry
+            is duplicated.
+
+        Concurrency safety:
+            This method only reads and inserts ``UserFileDO`` rows; it does not
+            modify the source node or any blob objects.  It is therefore safe
+            to call concurrently with the processor pipeline, which operates on
+            separate columns (OCR/summary metadata) of existing file rows.
+        """
         source_node = await self.get_node_by_id(user_id, source_node_id)
         if not source_node:
             return None

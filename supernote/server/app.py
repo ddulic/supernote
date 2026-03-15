@@ -40,6 +40,7 @@ from .routes import (
 from .routes.decorators import public_route
 from .services.ai_service import AIService
 from .services.blob import LocalBlobStorage
+from .services.cleanup import TempFileCleanupService
 from .services.coordination import SqliteCoordinationService
 from .services.file import FileService
 from .services.gemini import GeminiService
@@ -112,6 +113,11 @@ async def trace_middleware(
         if isinstance(response, web.Response) and response.body:
             if is_binary_content_type(response.content_type):
                 res_body_str = "<binary data>"
+            elif (
+                is_note_content_route(request.path)
+                and "application/json" in response.content_type
+            ):
+                res_body_str = "<note-content redacted>"
             else:
                 try:
                     if isinstance(response.body, bytes):
@@ -186,6 +192,20 @@ def is_binary_content_type(content_type: str) -> bool:
         "video/",
     ]
     return any(t in content_type for t in binary_types)
+
+
+_NOTE_CONTENT_ROUTE_PATTERNS = [
+    "/api/file/insights",
+    "/api/summary",
+    "/transcript",
+    "/api/extended/transcript",
+    "/api/file/query/summary",
+]
+
+
+def is_note_content_route(path: str) -> bool:
+    """Return True if the route path may return sensitive note content."""
+    return any(pattern in path for pattern in _NOTE_CONTENT_ROUTE_PATTERNS)
 
 
 def _sanitize_headers(headers: dict[str, Any]) -> dict[str, Any]:
@@ -295,7 +315,12 @@ def create_app(config: ServerConfig) -> web.Application:
     event_bus = LocalEventBus()
     app["event_bus"] = event_bus
 
-    user_service = UserService(config.auth, coordination_service, session_manager)
+    user_service = UserService(
+        config.auth,
+        coordination_service,
+        session_manager,
+        default_quota_bytes=config.default_quota_bytes,
+    )
     file_service = FileService(
         config.storage_root,
         blob_storage,
@@ -343,6 +368,13 @@ def create_app(config: ServerConfig) -> web.Application:
         event_bus, session_manager, file_service, summary_service
     )
     app["processor_service"] = processor_service
+
+    cleanup_service = TempFileCleanupService(
+        scan_dir=config.storage_root / "temp",
+        interval_seconds=config.temp_cleanup_interval_seconds,
+        ttl_seconds=config.temp_ttl_seconds,
+    )
+    app["cleanup_service"] = cleanup_service
 
     # Register modules
     processor_service.register_modules(
@@ -471,6 +503,7 @@ def create_app(config: ServerConfig) -> web.Application:
 
         logger.info("Starting background services...")
         await processor_service.start()
+        await cleanup_service.start()
         logger.info("Startup sequence complete.")
 
         app["mcp_task"] = mcp_task
@@ -486,6 +519,7 @@ def create_app(config: ServerConfig) -> web.Application:
                 pass
 
         await processor_service.stop()
+        await cleanup_service.stop()
         await session_manager.close()
 
     app.on_shutdown.append(on_shutdown_handler)

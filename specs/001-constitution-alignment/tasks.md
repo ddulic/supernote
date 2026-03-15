@@ -34,8 +34,8 @@ written and confirmed to FAIL before their corresponding implementation tasks be
 
 **⚠️ CRITICAL**: US2 quota implementation cannot begin until T002–T003 are complete.
 
-- [ ] T002 Add `used_capacity: Mapped[int]` column (default 0) to `UserDO` in `supernote/server/db/models/user.py`
-- [ ] T003 Create alembic migration in `supernote/alembic/versions/` adding `used_capacity` column with a reconciliation `UPDATE` that sets `used_capacity = SUM(active file sizes)` for all existing users
+- [x] T002 Add `used_capacity: Mapped[int]` column (default 0) to `UserDO` in `supernote/server/db/models/user.py`
+- [x] T003 Create alembic migration in `supernote/alembic/versions/` adding `used_capacity` column with a reconciliation `UPDATE` that sets `used_capacity = SUM(active file sizes)` for all existing users
 
 **Checkpoint**: Schema migration complete — US2 implementation can now proceed.
 
@@ -81,20 +81,20 @@ written and confirmed to FAIL before their corresponding implementation tasks be
 
 > **Write these FIRST and confirm they FAIL before writing any implementation**
 
-- [ ] T016 [P] [US2] Write `tests/server/services/test_cleanup.py`: test that `TempFileCleanupService` removes chunk files (`*.part.*`) older than the configured TTL and does NOT remove files younger than TTL
-- [ ] T017 [P] [US2] Write `tests/server/routes/test_upload_quota.py`: test that `POST /api/file/3/files/upload/apply` returns HTTP 507 with `E0507` error code when `used_capacity + requested_size > total_capacity`
-- [ ] T018 [P] [US2] Write `tests/server/services/test_user_quota.py`: test that `used_capacity` increments on upload finish and decrements on file delete, and floors at 0
+- [x] T016 [P] [US2] Write `tests/server/services/test_cleanup.py`: test that `TempFileCleanupService` removes chunk files (`*.part.*`) older than the configured TTL and does NOT remove files younger than TTL
+- [x] T017 [P] [US2] Write `tests/server/routes/test_upload_quota.py`: test that `POST /api/file/3/files/upload/apply` returns HTTP 507 with `E0507` error code when `used_capacity + requested_size > total_capacity`
+- [x] T018 [P] [US2] Write `tests/server/services/test_user_quota.py`: test that `used_capacity` increments on upload finish and decrements on file delete, and floors at 0
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Implement `TempFileCleanupService` in `supernote/server/services/cleanup.py` with configurable `interval_seconds` and `ttl_seconds`; follows `ProcessorService` lifecycle pattern (`start()` / `stop()` with `asyncio.Task` + `asyncio.Event`)
-- [ ] T020 [P] [US2] Add `temp_cleanup_interval_seconds` and `temp_ttl_seconds` fields to `ServerConfig` in `supernote/server/config.py` with env-var overrides `SUPERNOTE_TEMP_CLEANUP_INTERVAL` and `SUPERNOTE_TEMP_TTL`
-- [ ] T021 [US2] Register `TempFileCleanupService` in `app.on_startup` and `app.on_shutdown` in `supernote/server/app.py` (depends on T019, T020)
-- [ ] T022 [US2] Add quota check to `handle_upload_apply` in `supernote/server/routes/file_device.py`: read `user.used_capacity` + `user.total_capacity`, return 507 with `E0507` if exceeded (depends on T002–T003)
-- [ ] T023 [US2] Add quota check to `handle_file_upload_apply` in `supernote/server/routes/file_web.py`: same logic as T022 (depends on T002–T003)
-- [ ] T024 [US2] Increment `used_capacity` atomically in upload-finish path in `supernote/server/services/file.py` (depends on T002–T003)
-- [ ] T025 [US2] Decrement `used_capacity` atomically (floor at 0) in file-delete path in `supernote/server/services/file.py` (depends on T002–T003)
-- [ ] T026 [US2] Apply `default_quota_bytes` (from `ServerConfig`, env: `SUPERNOTE_DEFAULT_QUOTA_BYTES`, default 10 GB) when creating new users in `supernote/server/services/user.py`
+- [x] T019 [US2] Implement `TempFileCleanupService` in `supernote/server/services/cleanup.py` with configurable `interval_seconds` and `ttl_seconds`; follows `ProcessorService` lifecycle pattern (`start()` / `stop()` with `asyncio.Task` + `asyncio.Event`)
+- [x] T020 [P] [US2] Add `temp_cleanup_interval_seconds` and `temp_ttl_seconds` fields to `ServerConfig` in `supernote/server/config.py` with env-var overrides `SUPERNOTE_TEMP_CLEANUP_INTERVAL` and `SUPERNOTE_TEMP_TTL`
+- [x] T021 [US2] Register `TempFileCleanupService` in `app.on_startup` and `app.on_shutdown` in `supernote/server/app.py` (depends on T019, T020)
+- [x] T022 [US2] Add quota check to `handle_upload_apply` in `supernote/server/routes/file_device.py`: read `user.used_capacity` + `user.total_capacity`, return 507 with `E0507` if exceeded (depends on T002–T003)
+- [x] T023 [US2] Add quota check to `handle_file_upload_apply` in `supernote/server/routes/file_web.py`: same logic as T022 (depends on T002–T003)
+- [x] T024 [US2] Increment `used_capacity` atomically in upload-finish path in `supernote/server/services/file.py` (depends on T002–T003)
+- [x] T025 [US2] Decrement `used_capacity` atomically (floor at 0) in file-delete path in `supernote/server/services/file.py` (depends on T002–T003)
+- [x] T026 [US2] Apply `default_quota_bytes` (from `ServerConfig`, env: `SUPERNOTE_DEFAULT_QUOTA_BYTES`, default 10 GB) when creating new users in `supernote/server/services/user.py`
 
 **Checkpoint**: US2 complete — quota enforced, chunk cleanup runs hourly. Verify with quickstart.md US2 steps.
 
@@ -110,16 +110,16 @@ written and confirmed to FAIL before their corresponding implementation tasks be
 
 > **Write these FIRST and confirm they FAIL before writing any implementation**
 
-- [ ] T027 [P] [US3] Write `tests/server/services/test_vfs.py` (new tests): test that `VirtualFileSystem.delete_node` on a folder recursively soft-deletes all active children and creates `RecycleFileDO` entries for each
-- [ ] T028 [P] [US3] Write test in `tests/server/services/test_vfs.py`: test that `VirtualFileSystem.copy_node` on a folder with nested sub-directories produces a complete deep copy under the target parent
-- [ ] T029 [P] [US3] Write `tests/server/test_trace_redaction.py`: test that responses from summary/insight routes have their body replaced with `<note-content redacted>` in the trace log entry
+- [x] T027 [P] [US3] Write `tests/server/services/test_vfs.py` (new tests): test that `VirtualFileSystem.delete_node` on a folder recursively soft-deletes all active children and creates `RecycleFileDO` entries for each
+- [x] T028 [P] [US3] Write test in `tests/server/services/test_vfs.py`: test that `VirtualFileSystem.copy_node` on a folder with nested sub-directories produces a complete deep copy under the target parent
+- [x] T029 [P] [US3] Write `tests/server/test_trace_redaction.py`: test that responses from summary/insight routes have their body replaced with `<note-content redacted>` in the trace log entry
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Remove `SqliteCoordinationService._cleanup()` stub method (lines 56–59) from `supernote/server/services/coordination.py`; confirm no call sites exist first
-- [ ] T031 [US3] Fix `VirtualFileSystem.delete_node` in `supernote/server/services/vfs.py` to recursively soft-delete all active descendants in a single transaction when called on a folder (use `list_recursive()`; create `RecycleFileDO` per file node)
-- [ ] T032 [P] [US3] Add docstring to `VirtualFileSystem.copy_node` in `supernote/server/services/vfs.py` documenting: recursive behaviour, autorename semantics, CAS storage-key sharing, and that it is safe to call concurrently with the processor pipeline
-- [ ] T033 [US3] Add note-content redaction guard to `trace_middleware` in `supernote/server/app.py`: replace response body with `"<note-content redacted>"` when route path matches `/api/file/insights`, `/api/summary`, or similar OCR/synthesis result routes
+- [x] T030 [US3] Remove `SqliteCoordinationService._cleanup()` stub method (lines 56–59) from `supernote/server/services/coordination.py`; confirm no call sites exist first
+- [x] T031 [US3] Fix `VirtualFileSystem.delete_node` in `supernote/server/services/vfs.py` to recursively soft-delete all active descendants in a single transaction when called on a folder (use `list_recursive()`; create `RecycleFileDO` per file node)
+- [x] T032 [P] [US3] Add docstring to `VirtualFileSystem.copy_node` in `supernote/server/services/vfs.py` documenting: recursive behaviour, autorename semantics, CAS storage-key sharing, and that it is safe to call concurrently with the processor pipeline
+- [x] T033 [US3] Add note-content redaction guard to `trace_middleware` in `supernote/server/app.py`: replace response body with `"<note-content redacted>"` when route path matches `/api/file/insights`, `/api/summary`, or similar OCR/synthesis result routes
 
 **Checkpoint**: All US3 tasks complete — full test suite passes with no regressions.
 

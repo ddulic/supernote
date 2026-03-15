@@ -175,6 +175,24 @@ class ServerConfig(DataClassYAMLMixin):
     Env Var: `SUPERNOTE_MISTRAL_MAX_CONCURRENCY`
     """
 
+    temp_cleanup_interval_seconds: int = 3600
+    """Interval in seconds between temp file cleanup runs.
+
+    Env Var: `SUPERNOTE_TEMP_CLEANUP_INTERVAL`
+    """
+
+    temp_ttl_seconds: int = 86400
+    """TTL in seconds for orphaned temp chunk files before deletion.
+
+    Env Var: `SUPERNOTE_TEMP_TTL`
+    """
+
+    default_quota_bytes: int = 10737418240
+    """Default storage quota in bytes for new users (default: 10 GB).
+
+    Env Var: `SUPERNOTE_DEFAULT_QUOTA_BYTES`
+    """
+
     @property
     def base_url(self) -> str:
         """Get the base URL for the main server.
@@ -385,6 +403,42 @@ class ServerConfig(DataClassYAMLMixin):
                 logger.warning(
                     f"Ignoring invalid SUPERNOTE_MISTRAL_MAX_CONCURRENCY={mistral_max_concurrency!r}; must be an integer"
                 )
+
+        if os.getenv("SUPERNOTE_TEMP_CLEANUP_INTERVAL"):
+            try:
+                config.temp_cleanup_interval_seconds = int(
+                    os.getenv(
+                        "SUPERNOTE_TEMP_CLEANUP_INTERVAL",
+                        str(config.temp_cleanup_interval_seconds),
+                    )
+                )
+                logger.info(
+                    f"Using SUPERNOTE_TEMP_CLEANUP_INTERVAL: {config.temp_cleanup_interval_seconds}"
+                )
+            except ValueError:
+                pass
+
+        if os.getenv("SUPERNOTE_TEMP_TTL"):
+            try:
+                config.temp_ttl_seconds = int(
+                    os.getenv("SUPERNOTE_TEMP_TTL", str(config.temp_ttl_seconds))
+                )
+                logger.info(f"Using SUPERNOTE_TEMP_TTL: {config.temp_ttl_seconds}")
+            except ValueError:
+                pass
+
+        if os.getenv("SUPERNOTE_DEFAULT_QUOTA_BYTES"):
+            try:
+                config.default_quota_bytes = int(
+                    os.getenv(
+                        "SUPERNOTE_DEFAULT_QUOTA_BYTES", str(config.default_quota_bytes)
+                    )
+                )
+                logger.info(
+                    f"Using SUPERNOTE_DEFAULT_QUOTA_BYTES: {config.default_quota_bytes}"
+                )
+            except ValueError:
+                pass
 
         if config.trace_log_file is None:
             config.trace_log_file = str(
