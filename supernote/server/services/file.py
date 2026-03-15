@@ -928,10 +928,10 @@ class FileService:
             note = load_notebook(BytesIO(blob_content))  # type: ignore[arg-type]
 
             # Convert each page to PNG
-            converter = ImageConverter(note)  # type: ignore[no-untyped-call]
+            converter = ImageConverter(note)
             results = []
             for i in range(note.get_total_pages()):
-                img = converter.convert(i)  # type: ignore[no-untyped-call]
+                img = converter.convert(i)
                 img_io = BytesIO()
                 img.save(img_io, format="PNG")
                 img_bytes = img_io.getvalue()

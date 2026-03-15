@@ -18,11 +18,13 @@ import base64
 import json
 import queue
 import zlib
+from typing import Any
 
 import numpy as np
 import png
 
 from . import color, exceptions
+from .color import ColorPalette
 
 
 class BaseDecoder:
@@ -31,10 +33,12 @@ class BaseDecoder:
     def decode(
         self,
         data: bytes,
-        palette: color.ColorPalette | None = None,
+        page_width: int = 0,
+        page_height: int = 0,
+        palette: ColorPalette | None = None,
         all_blank: bool = False,
         horizontal: bool = False,
-    ):
+    ) -> Any:
         raise NotImplementedError("subclasses must implement decode method")
 
 
@@ -49,15 +53,15 @@ class FlateDecoder(BaseDecoder):
     INTERNAL_PAGE_HEIGHT = 1888
     INTERNAL_PAGE_WIDTH = 1404
 
-    def decode(
+    def decode(  # type: ignore[override]  # forked upstream decoder hierarchy; extra positional args required by binary format decoder protocol
         self,
-        data,
-        page_width,
-        page_height,
-        palette=None,
-        all_blank=False,
-        horizontal=False,
-    ):
+        data: bytes,
+        page_width: int,
+        page_height: int,
+        palette: ColorPalette | None = None,
+        all_blank: bool = False,
+        horizontal: bool = False,
+    ) -> tuple[bytes, tuple[int, int], int]:
         """Uncompress bitmap data.
 
         Parameters
@@ -123,15 +127,15 @@ class RattaRleDecoder(BaseDecoder):
     SPECIAL_LENGTH = 0x4000
     SPECIAL_LENGTH_FOR_BLANK = 0x400
 
-    def decode(
+    def decode(  # type: ignore[override]  # forked upstream decoder hierarchy; extra positional args required by binary format decoder protocol
         self,
-        data,
-        page_width,
-        page_height,
-        palette=None,
-        all_blank=False,
-        horizontal=False,
-    ):
+        data: bytes,
+        page_width: int,
+        page_height: int,
+        palette: ColorPalette | None = None,
+        all_blank: bool = False,
+        horizontal: bool = False,
+    ) -> tuple[bytes, tuple[int, int], int]:
         """Uncompress bitmap data.
 
         Parameters
@@ -170,8 +174,8 @@ class RattaRleDecoder(BaseDecoder):
         uncompressed = bytearray()
         bin = iter(data)
         try:
-            holder = ()
-            waiting = queue.Queue()
+            holder: tuple[()] | tuple[int, int] = ()
+            waiting: queue.Queue[tuple[int, int]] = queue.Queue()
             while True:
                 colorcode = next(bin)
                 length = next(bin)
@@ -227,7 +231,7 @@ class RattaRleDecoder(BaseDecoder):
 
         return bytes(uncompressed), (page_width, page_height), bit_per_pixel
 
-    def _create_colormap(self, palette):
+    def _create_colormap(self, palette: ColorPalette) -> dict[int, int]:
         colormap = {
             self.COLORCODE_BLACK: palette.black,
             self.COLORCODE_BACKGROUND: palette.transparent,
@@ -240,10 +244,12 @@ class RattaRleDecoder(BaseDecoder):
         }
         return colormap
 
-    def _create_color_bytearray(self, mode, colormap, color_code, length):
+    def _create_color_bytearray(
+        self, mode: str, colormap: dict[int, int], color_code: int, length: int
+    ) -> bytearray:
         if mode == color.MODE_RGB:
             c = colormap.get(color_code)
-            r, g, b = color.get_rgb(c)
+            r, g, b = color.get_rgb(c)  # type: ignore[arg-type]  # forked binary format; color_code is always in colormap for known protocols
             return (
                 bytearray(
                     (
@@ -256,9 +262,11 @@ class RattaRleDecoder(BaseDecoder):
             )
         else:
             c = colormap.get(color_code)
-            return bytearray((c,)) * length
+            return bytearray((c,)) * length  # type: ignore[arg-type]  # forked binary format; colormap values are always int for grayscale mode
 
-    def _adjust_tail_length(self, tail_length, current_length, total_length):
+    def _adjust_tail_length(
+        self, tail_length: int, current_length: int, total_length: int
+    ) -> int:
         gap = total_length - current_length
         for i in reversed(range(8)):
             length = ((tail_length & 0x7F) + 1) << i
@@ -279,7 +287,7 @@ class RattaRleX2Decoder(RattaRleDecoder):
     COLORCODE_DARK_GRAY_COMPAT = 0x63
     COLORCODE_GRAY_COMPAT = 0x64
 
-    def _create_colormap(self, palette):
+    def _create_colormap(self, palette: ColorPalette) -> dict[int, int]:
         colormap = {
             self.COLORCODE_BLACK: palette.black,
             self.COLORCODE_BACKGROUND: palette.transparent,
@@ -294,7 +302,9 @@ class RattaRleX2Decoder(RattaRleDecoder):
         }
         return colormap
 
-    def _create_color_bytearray(self, mode, colormap, color_code, length):
+    def _create_color_bytearray(
+        self, mode: str, colormap: dict[int, int], color_code: int, length: int
+    ) -> bytearray:
         if mode == color.MODE_RGB:
             c = colormap.get(color_code)
             if c is not None:
@@ -321,15 +331,15 @@ class RattaRleX2Decoder(RattaRleDecoder):
 class PngDecoder(BaseDecoder):
     """Decoder for PNG."""
 
-    def decode(
+    def decode(  # type: ignore[override]  # forked upstream decoder hierarchy; extra positional args required by binary format decoder protocol
         self,
-        data,
-        page_width,
-        page_height,
-        palette=None,
-        all_blank=False,
-        horizontal=False,
-    ):
+        data: bytes,
+        page_width: int,
+        page_height: int,
+        palette: ColorPalette | None = None,
+        all_blank: bool = False,
+        horizontal: bool = False,
+    ) -> tuple[bytes, tuple[int, int], int]:
         """Uncompress bitmap data.
 
         Parameters
@@ -371,7 +381,13 @@ class TextDecoder(BaseDecoder):
     """Decoder for text."""
 
     def decode(
-        self, data: bytes, palette=None, all_blank=False, horizontal=False
+        self,
+        data: bytes | None,
+        page_width: int = 0,
+        page_height: int = 0,
+        palette: ColorPalette | None = None,
+        all_blank: bool = False,
+        horizontal: bool = False,
     ) -> list[str] | None:
         """Extract text from a realtime recognition data.
 

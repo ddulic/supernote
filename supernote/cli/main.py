@@ -3,11 +3,12 @@
 import argparse
 import importlib
 import sys
+from collections.abc import Callable
 
 SUBPARERS = ["notebook", "client", "server", "admin"]
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="supernote",
         description="Supernote toolkit for parsing, self hosting, and service access",
@@ -27,8 +28,10 @@ def main():
                 name, help=f"(Disabled: missing dependencies: {err})"
             )
 
-            def make_error_handler(name: str, err: Exception):
-                def error_handler(args: argparse.Namespace):
+            def make_error_handler(
+                name: str, err: Exception
+            ) -> Callable[[argparse.Namespace], None]:
+                def error_handler(args: argparse.Namespace) -> None:
                     print(
                         f"Error: Command '{name}' failed to load due to missing dependencies: {err}"
                     )

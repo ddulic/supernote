@@ -18,6 +18,7 @@ import base64
 import json
 from enum import Enum, auto
 from io import BytesIO
+from typing import Any
 
 import potrace
 import svgwrite
@@ -38,12 +39,12 @@ class VisibilityOverlay(Enum):
 
 
 def build_visibility_overlay(
-    background=VisibilityOverlay.DEFAULT,
-    main=VisibilityOverlay.DEFAULT,
-    layer1=VisibilityOverlay.DEFAULT,
-    layer2=VisibilityOverlay.DEFAULT,
-    layer3=VisibilityOverlay.DEFAULT,
-):
+    background: VisibilityOverlay = VisibilityOverlay.DEFAULT,
+    main: VisibilityOverlay = VisibilityOverlay.DEFAULT,
+    layer1: VisibilityOverlay = VisibilityOverlay.DEFAULT,
+    layer2: VisibilityOverlay = VisibilityOverlay.DEFAULT,
+    layer3: VisibilityOverlay = VisibilityOverlay.DEFAULT,
+) -> dict[str, VisibilityOverlay]:
     return {
         "BGLAYER": background,
         "MAINLAYER": main,
@@ -56,11 +57,15 @@ def build_visibility_overlay(
 class ImageConverter:
     SPECIAL_WHITE_STYLE_BLOCK_SIZE = 0x140E
 
-    def __init__(self, notebook, palette=None):
+    def __init__(self, notebook: Notebook, palette: ColorPalette | None = None) -> None:
         self.note = notebook
         self.palette = palette
 
-    def convert(self, page_number, visibility_overlay=None):
+    def convert(
+        self,
+        page_number: int,
+        visibility_overlay: dict[str, VisibilityOverlay] | None = None,
+    ) -> Image.Image:
         """Returns an image of the given page.
 
         Parameters
@@ -91,8 +96,12 @@ class ImageConverter:
         return converted_img
 
     def _convert_nonlayered_page(
-        self, page, palette=None, visibility_overlay=None, highres_grayscale=False
-    ):
+        self,
+        page: fileformat.Page,
+        palette: ColorPalette | None = None,
+        visibility_overlay: dict[str, VisibilityOverlay] | None = None,
+        highres_grayscale: bool = False,
+    ) -> Image.Image:
         binary = page.get_content()
         if binary is None:
             return Image.new(
@@ -104,11 +113,15 @@ class ImageConverter:
         return self._create_image_from_decoder(decoder, binary, palette=palette)
 
     def _convert_layered_page(
-        self, page, palette=None, visibility_overlay=None, highres_grayscale=False
-    ):
+        self,
+        page: fileformat.Page,
+        palette: ColorPalette | None = None,
+        visibility_overlay: dict[str, VisibilityOverlay] | None = None,
+        highres_grayscale: bool = False,
+    ) -> Image.Image:
         default_palette = color.DEFAULT_COLORPALETTE
         page = utils.WorkaroundPageWrapper.from_page(page)
-        imgs = {}
+        imgs: dict[str | None, Image.Image | None] = {}
         layers = page.get_layers()
         for layer in layers:
             layer_name = layer.get_name()
@@ -146,10 +159,15 @@ class ImageConverter:
             imgs[layer_name] = img
         return self._flatten_layers(page, imgs, visibility_overlay)
 
-    def _flatten_layers(self, page, imgs, visibility_overlay=None):
+    def _flatten_layers(
+        self,
+        page: fileformat.Page,
+        imgs: dict[str | None, Image.Image | None],
+        visibility_overlay: dict[str, VisibilityOverlay] | None = None,
+    ) -> Image.Image:
         """flatten all layers if any"""
 
-        def flatten(fg, bg):
+        def flatten(fg: Image.Image, bg: Image.Image) -> Image.Image:
             mask = fg.copy().convert("L")
             mask = mask.point(lambda x: 0 if x == color.TRANSPARENT else 1, mode="1")
             return Image.composite(fg, bg, mask)
@@ -182,13 +200,13 @@ class ImageConverter:
                 flatten_img = flatten(img_layer, flatten_img)
         return flatten_img
 
-    def _whiten_transparent(self, img):
+    def _whiten_transparent(self, img: Image.Image) -> Image.Image:
         img = img.convert("RGBA")
         newImg = Image.new("RGBA", img.size, color.RGB_WHITE)
         newImg.paste(img, mask=img)
         return newImg
 
-    def _make_transparent(self, img):
+    def _make_transparent(self, img: Image.Image) -> Image.Image:
         transparent_img = Image.new("RGBA", img.size, (255, 255, 255, 0))
         mask = img.copy().convert("L")
         mask = mask.point(lambda x: 1 if x == color.TRANSPARENT else 0, mode="1")
@@ -196,8 +214,13 @@ class ImageConverter:
         return Image.composite(transparent_img, img, mask)
 
     def _create_image_from_decoder(
-        self, decoder, binary, palette=None, blank_hint=False, horizontal=False
-    ):
+        self,
+        decoder: Decoder.BaseDecoder,
+        binary: bytes,
+        palette: ColorPalette | None = None,
+        blank_hint: bool = False,
+        horizontal: bool = False,
+    ) -> Image.Image:
         page_width = self.note.get_width()
         page_height = self.note.get_height()
         bitmap, size, bpp = decoder.decode(
@@ -220,8 +243,10 @@ class ImageConverter:
             img = Image.frombytes("L", size, bitmap)
         return img
 
-    def _get_layer_visibility(self, page):
-        visibility = {}
+    def _get_layer_visibility(
+        self, page: fileformat.Page
+    ) -> dict[str | None, bool | Any]:
+        visibility: dict[str | None, bool | Any] = {}
         info = page.get_layer_info()
         if info is None:
             # pass to the process of getting visibility for mark file
@@ -243,15 +268,21 @@ class ImageConverter:
             visibility["MAINLAYER"] = True
         return visibility
 
-    def _get_mark_layer_visibility(self, page):
-        visibility = {}
+    def _get_mark_layer_visibility(
+        self, page: fileformat.Page
+    ) -> dict[str | None, bool]:
+        visibility: dict[str | None, bool] = {}
         layers = page.get_layers()
         for layer in layers:
             name = layer.get_name()
             visibility[name] = layer.get_type() == "MARK"
         return visibility
 
-    def find_decoder(self, page, highres_grayscale=False):
+    def find_decoder(
+        self,
+        page: fileformat.Page | fileformat.Layer,
+        highres_grayscale: bool = False,
+    ) -> Decoder.BaseDecoder:
         """Returns a proper decoder for the given page.
 
         Parameters
@@ -279,14 +310,18 @@ class ImageConverter:
 
 
 class SvgConverter:
-    def __init__(self, notebook, palette=None):
+    def __init__(self, notebook: Notebook, palette: ColorPalette | None = None) -> None:
         self.note = notebook
         self.palette = palette if palette is not None else color.DEFAULT_COLORPALETTE
         self.image_converter = ImageConverter(
             notebook, palette=color.DEFAULT_COLORPALETTE
         )  # use default palette
 
-    def convert(self, page_number, visibility_overlay=None):
+    def convert(
+        self,
+        page_number: int,
+        visibility_overlay: dict[str, VisibilityOverlay] | None = None,
+    ) -> str:
         """Returns SVG string of the given page.
 
         Parameters
@@ -337,7 +372,7 @@ class SvgConverter:
         vo_except_bg = build_visibility_overlay(background=VisibilityOverlay.INVISIBLE)
         img = self.image_converter.convert(page_number, visibility_overlay=vo_except_bg)
 
-        def generate_color_mask(img, c):
+        def generate_color_mask(img: Image.Image, c: int) -> Image.Image:
             mask = img.copy().convert("L")
             return mask.point(lambda x: 0 if x == c else 1, mode="1")
 
@@ -381,27 +416,27 @@ class SvgConverter:
                             svgpath.push("C", c1.x, c1.y, c2.x, c2.y, end.x, end.y)
                     svgpath.push("Z")
                 dwg.add(svgpath)
-        return dwg.tostring()
+        return str(dwg.tostring())
 
 
 class PdfConverter:
     class ImgPageRenderer:
-        def __init__(self, img: Image.Image, pagesize):
+        def __init__(self, img: Image.Image, pagesize: tuple[float, float]) -> None:
             self.img = img
             self.pagesize = pagesize
 
-        def get_scale(self):
+        def get_scale(self) -> tuple[float, float]:
             (w, h) = self.pagesize
             return (w / self.img.width, h / self.img.height)
 
-        def draw(self, cvs):
+        def draw(self, cvs: canvas.Canvas) -> None:
             (w, h) = self.pagesize
             cvs.drawInlineImage(self.img, 0, 0, width=w, height=h)
 
     def __init__(self, notebook: Notebook, palette: ColorPalette | None = None) -> None:
         self.note = notebook
         self.palette = palette
-        self.pagesize = A4
+        self.pagesize: tuple[float, float] = A4
 
     def convert(
         self,
@@ -434,8 +469,8 @@ class PdfConverter:
 
     def _create_image_list(
         self, converter: ImageConverter, page_indices: int | list[int]
-    ) -> list[tuple[int, Image]]:
-        imglist = []
+    ) -> list[tuple[int, Image.Image]]:
+        imglist: list[tuple[int, Image.Image]] = []
         if isinstance(page_indices, int):
             if page_indices < 0:
                 indices = list(range(self.note.get_total_pages()))
@@ -452,7 +487,7 @@ class PdfConverter:
     def _create_pdf(
         self,
         buf: BytesIO,
-        imglist: list[tuple[int, Image]],
+        imglist: list[tuple[int, Image.Image]],
         renderer_class: type[ImgPageRenderer],
         enable_link: bool,
         enable_keyword: bool,
@@ -493,7 +528,12 @@ class PdfConverter:
             c.showPage()
         c.save()
 
-    def _add_links(self, cvs, page_number, scale):
+    def _add_links(
+        self,
+        cvs: canvas.Canvas,
+        page_number: int,
+        scale: tuple[float, float],
+    ) -> None:
         links = self.note.get_links()
         for link in links:
             if link.get_page_number() != page_number:
@@ -513,7 +553,11 @@ class PdfConverter:
                 scaled_rect = self._calc_link_rect(link.get_rect(), scale)
                 cvs.linkURL(url, scaled_rect)
 
-    def _calc_link_rect(self, rect, scale):
+    def _calc_link_rect(
+        self,
+        rect: tuple[int, int, int, int],
+        scale: tuple[float, float],
+    ) -> tuple[float, float, float, float]:
         (left, top, right, bottom) = rect
         (scale_x, scale_y) = scale
         (w, h) = self.pagesize
@@ -526,7 +570,9 @@ class PdfConverter:
 
 
 class TextConverter:
-    def __init__(self, notebook: fileformat.Notebook, palette=None) -> None:
+    def __init__(
+        self, notebook: fileformat.Notebook, palette: ColorPalette | None = None
+    ) -> None:
         self.note = notebook
         self.palette = palette
 

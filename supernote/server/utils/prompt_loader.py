@@ -3,7 +3,6 @@ import importlib.resources
 import logging
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Dict, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +25,11 @@ DEFAULT = "default"
 class PromptLoader:
     """Service to load and manage externalized prompts."""
 
-    def __init__(
-        self, resources_dir: Optional[Union[Path, Traversable]] = None
-    ) -> None:
+    def __init__(self, resources_dir: Path | Traversable | None = None) -> None:
         self.resources_dir = resources_dir or RESOURCES_DIR
         # Map: prompt_id -> (type -> prompt_text)
         # type can be "common", "default", or specific custom types like "monthly"
-        self.prompts: Dict[str, Dict[str, str]] = {}
+        self.prompts: dict[str, dict[str, str]] = {}
         self._load_prompts()
 
     def _load_prompts(self) -> None:
@@ -82,7 +79,7 @@ class PromptLoader:
         except Exception as e:
             logger.error(f"Failed to load prompts from {self.resources_dir}: {e}")
 
-    def _read_prompts_from_dir(self, directory: Union[Path, Traversable]) -> str:
+    def _read_prompts_from_dir(self, directory: Path | Traversable) -> str:
         """Read and concatenate all .md files in a directory."""
         prompts = []
         # Use iterdir instead of glob for Traversable compatibility
@@ -95,7 +92,7 @@ class PromptLoader:
                 prompts.append(file_path.read_text(encoding="utf-8").strip())
         return "\n\n".join(prompts)
 
-    def get_prompt(self, prompt_id: PromptId, custom_type: Optional[str] = None) -> str:
+    def get_prompt(self, prompt_id: PromptId, custom_type: str | None = None) -> str:
         """Retrieve a prompt by its ID, optionally overridden by a custom type.
 
         Logic: Common + (Custom if exists else Default)

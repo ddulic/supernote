@@ -69,9 +69,6 @@ supernote-server = "supernote.cli.server:main"
 exclude = [
   "venv/",
   "data",
-  # TODO: Fix mypy errors and then remove this
-  "supernote/notebook/",
-  "supernote/cli/",
 ]
 platform = "linux"
 show_error_codes = true

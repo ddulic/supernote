@@ -2,7 +2,6 @@ import asyncio
 import io
 import logging
 from functools import partial
-from typing import Optional
 
 from sqlalchemy import select
 
@@ -21,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 def _convert_helper(path: str, page_index: int) -> bytes:
     # Use loose policy to attempt parsing even if signature is unknown
-    notebook = load_notebook(path, policy="loose")  # type: ignore[no-untyped-call]
-    converter = ImageConverter(notebook)  # type: ignore[no-untyped-call]
-    img = converter.convert(page_index)  # type: ignore[no-untyped-call]
+    notebook = load_notebook(path, policy="loose")
+    converter = ImageConverter(notebook)
+    img = converter.convert(page_index)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -45,8 +44,8 @@ class PngConversionModule(ProcessorModule):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
         **kwargs: object,
     ) -> None:
         """

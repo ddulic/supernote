@@ -3,7 +3,7 @@
 import hashlib
 import logging
 import uuid
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 import aiohttp
 from aiohttp import FormData
@@ -131,7 +131,7 @@ class Client:
     async def get_json(
         self,
         url: str,
-        data_cls: Type[_T],
+        data_cls: type[_T],
         **kwargs: Any,
     ) -> _T:
         """Make a get request and return json response."""
@@ -173,7 +173,7 @@ class Client:
         except ClientError as err:
             raise ApiException(f"Error reading response: {err}") from err
 
-    async def post_json(self, url: str, data_cls: Type[_T], **kwargs: Any) -> _T:
+    async def post_json(self, url: str, data_cls: type[_T], **kwargs: Any) -> _T:
         """Make a post request and return a json response."""
         resp = await self.post(url, **kwargs)
         try:
@@ -190,7 +190,7 @@ class Client:
             raise ApiException(data_response.error_msg)
         return data_response
 
-    async def put_json(self, url: str, data_cls: Type[_T], **kwargs: Any) -> _T:
+    async def put_json(self, url: str, data_cls: type[_T], **kwargs: Any) -> _T:
         """Make a put request and return a json response."""
         resp = await self.put(url, **kwargs)
         try:

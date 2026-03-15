@@ -1,7 +1,6 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from sqlalchemy import delete, select, text
 
@@ -27,7 +26,7 @@ class CoordinationService(ABC):
         pass
 
     @abstractmethod
-    async def get_value(self, key: str) -> Optional[str]:
+    async def get_value(self, key: str) -> str | None:
         """Get a value by key."""
         pass
 
@@ -37,7 +36,7 @@ class CoordinationService(ABC):
         pass
 
     @abstractmethod
-    async def pop_value(self, key: str) -> Optional[str]:
+    async def pop_value(self, key: str) -> str | None:
         """Get and delete a value atomically (if possible) or sequentially."""
         pass
 
@@ -78,7 +77,7 @@ class SqliteCoordinationService(CoordinationService):
 
             await session.commit()
 
-    async def get_value(self, key: str) -> Optional[str]:
+    async def get_value(self, key: str) -> str | None:
         """Get a value by key."""
         async with self._session_manager.session() as session:
             stmt = select(KeyValueDO).where(KeyValueDO.key == key)
@@ -103,7 +102,7 @@ class SqliteCoordinationService(CoordinationService):
             await session.execute(stmt)
             await session.commit()
 
-    async def pop_value(self, key: str) -> Optional[str]:
+    async def pop_value(self, key: str) -> str | None:
         """Get and delete a value atomically."""
         async with self._session_manager.session() as session:
             # Traditional Select then Delete to avoid issues with RETURNING in some sqlite/alchemy versions

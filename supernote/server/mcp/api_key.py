@@ -4,7 +4,6 @@ import hashlib
 import json
 import secrets
 import time
-from typing import Optional
 
 from supernote.server.services.coordination import CoordinationService
 
@@ -98,7 +97,7 @@ class ApiKeyService:
         await self._coordination.set_value(f"mcp:api_keys:{user_id}", json.dumps(index))
         return True
 
-    async def verify_key(self, key: str) -> Optional[str]:
+    async def verify_key(self, key: str) -> str | None:
         """Verify an API key. Returns the user_id (email) if valid, else None.
 
         Updates last_used_at on every successful verification.

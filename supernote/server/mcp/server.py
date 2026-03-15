@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from mcp.server.auth.middleware.auth_context import auth_context_var
 from mcp.server.auth.provider import TokenVerifier
@@ -84,7 +84,7 @@ class SupernoteTokenVerifier(TokenVerifier):
         return None
 
 
-async def _get_auth_user_id(ctx: Context) -> Optional[int]:
+async def _get_auth_user_id(ctx: Context) -> int | None:
     """Verify token and return user_id."""
     if not (user_service_raw := _services["user_service"]):
         raise ValueError("User service not initialized.")
@@ -103,9 +103,9 @@ async def search_notebook_chunks(
     ctx: Context,
     query: str,
     top_n: int = 5,
-    name_filter: Optional[str] = None,
-    date_after: Optional[str] = None,
-    date_before: Optional[str] = None,
+    name_filter: str | None = None,
+    date_after: str | None = None,
+    date_before: str | None = None,
 ) -> dict[str, Any]:
     """
     Search for notebook content chunks based on semantic similarity.
@@ -170,8 +170,8 @@ async def search_notebook_chunks(
 async def get_notebook_transcript(
     ctx: Context,
     file_id: int,
-    start_index: Optional[int] = None,
-    end_index: Optional[int] = None,
+    start_index: int | None = None,
+    end_index: int | None = None,
 ) -> dict[str, Any]:
     """
     Retrieve the full transcript or a page range for a notebook.
@@ -228,7 +228,7 @@ def create_mcp_server(issuer_url: str, resource_server_url: str) -> FastMCP:
 
 
 async def run_server(
-    mcp: FastMCP, host: str, port: int, proxy_mode: Optional[str] = None
+    mcp: FastMCP, host: str, port: int, proxy_mode: str | None = None
 ) -> None:
     """Run the FastMCP server with Streamable HTTP transport."""
     mcp.settings.host = host
