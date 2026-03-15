@@ -4,7 +4,7 @@ export default {
     name: 'SystemPanel',
     template: `
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="$emit('close')">
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 shadow-xl w-fit max-w-[90vw] max-h-[75vh] flex flex-col overflow-hidden">
                 <!-- Header -->
                 <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                     <h2 class="text-xl font-bold text-black dark:text-white">System Status</h2>
@@ -34,7 +34,15 @@ export default {
 
                     <!-- Tasks -->
                     <div>
-                        <h3 class="text-lg font-medium text-black dark:text-white mb-4">Processing Queue</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-black dark:text-white">Processing Queue</h3>
+                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <label class="text-xs">Rows per page:</label>
+                                <select v-model="pageSize" @change="currentPage = 1" class="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                    <option v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }}</option>
+                                </select>
+                            </div>
+                        </div>
                         <div v-if="loading" class="flex justify-center p-8">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
                         </div>
@@ -57,7 +65,7 @@ export default {
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                    <tr v-for="task in tasks" :key="task.id">
+                                    <tr v-for="task in paginatedTasks" :key="task.id">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-black dark:text-white">{{ task.fileId }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-black dark:text-white">{{ task.taskType }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.key }}</td>
@@ -77,6 +85,17 @@ export default {
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div v-if="totalPages > 1" class="flex items-center justify-end mt-3 text-sm text-gray-600 dark:text-gray-400">
+                            <div class="flex items-center gap-2">
+                                <span>Page {{ currentPage }} of {{ totalPages }}</span>
+                                <div class="flex gap-1">
+                                    <button @click="currentPage = 1" :disabled="currentPage === 1" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">&laquo;</button>
+                                    <button @click="currentPage--" :disabled="currentPage === 1" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">&lsaquo;</button>
+                                    <button @click="currentPage++" :disabled="currentPage === totalPages" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">&rsaquo;</button>
+                                    <button @click="currentPage = totalPages" :disabled="currentPage === totalPages" class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">&raquo;</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -98,13 +117,22 @@ export default {
             loading: true,
             error: null,
             tasks: [],
-            capacity: null
+            capacity: null,
+            currentPage: 1,
+            pageSize: 10
         }
     },
     computed: {
         usagePercent() {
             if (!this.capacity || this.capacity.totalCapacity === 0) return 0;
             return Math.min(100, (this.capacity.usedCapacity / this.capacity.totalCapacity) * 100);
+        },
+        totalPages() {
+            return Math.max(1, Math.ceil(this.tasks.length / this.pageSize));
+        },
+        paginatedTasks() {
+            const start = (this.currentPage - 1) * this.pageSize;
+            return this.tasks.slice(start, start + this.pageSize);
         }
     },
     async mounted() {
@@ -114,6 +142,7 @@ export default {
         async loadData() {
             this.loading = true;
             this.error = null;
+            this.currentPage = 1;
             try {
                 const [tasksResult, capacityResult] = await Promise.all([
                     fetchSystemTasks(),
