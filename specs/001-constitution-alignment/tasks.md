@@ -132,7 +132,7 @@ written and confirmed to FAIL before their corresponding implementation tasks be
 - [ ] T034 [P] Run `./script/test` and confirm all 300+ tests pass with zero failures or removals
 - [ ] T035 [P] Run `./script/run-mypy.sh` and confirm zero errors across the full `supernote/` package
 - [ ] T036 [P] Run `./script/lint` and confirm zero lint violations
-- [ ] T037 Update `ROADMAP.md` to mark completed items: static analysis (mypy for notebook/ and cli/), temp file cleanup, capacity/quota enforcement, VFS semantics, dead code removal
+- [x] T037 Update `ROADMAP.md` to mark completed items: static analysis (mypy for notebook/ and cli/), temp file cleanup, capacity/quota enforcement, VFS semantics, dead code removal
 
 ---
 
