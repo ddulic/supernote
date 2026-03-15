@@ -53,20 +53,24 @@ createApp({
         const selectedFile = ref(null);
         const breadcrumbs = ref([{ id: "0", name: "Cloud" }]);
 
-        function saveBreadcrumbsToUrl() {
+        function saveNavToUrl(fileId = null) {
             const encoded = breadcrumbs.value
                 .map(c => `${c.id}:${encodeURIComponent(c.name)}`)
                 .join(',');
-            history.replaceState(null, '', `#nav=${encoded}`);
+            const hash = fileId ? `#nav=${encoded}&file=${fileId}` : `#nav=${encoded}`;
+            history.replaceState(null, '', hash);
         }
-        function loadBreadcrumbsFromUrl() {
+        function loadNavFromUrl() {
             const hash = window.location.hash.slice(1);
             if (!hash.startsWith('nav=')) return null;
             try {
-                return hash.slice(4).split(',').map(part => {
+                const params = new URLSearchParams(hash);
+                const crumbs = params.get('nav').split(',').map(part => {
                     const colon = part.indexOf(':');
                     return { id: part.slice(0, colon), name: decodeURIComponent(part.slice(colon + 1)) };
                 });
+                const fileId = params.get('file');
+                return { crumbs, fileId };
             } catch { return null; }
         }
 
@@ -78,19 +82,20 @@ createApp({
             if (item.isDirectory) {
                 currentDirectoryId.value = item.id;
                 breadcrumbs.value.push({ id: item.id, name: item.name });
-                saveBreadcrumbsToUrl();
+                saveNavToUrl();
                 selectedIds.value = [];
                 await loadDirectory(item.id);
             } else {
                 selectedFile.value = item;
                 view.value = 'viewer';
+                saveNavToUrl(item.id);
             }
         }
 
         async function navigateTo(index) {
             const crumbs = breadcrumbs.value.slice(0, index + 1);
             breadcrumbs.value = crumbs;
-            saveBreadcrumbsToUrl();
+            saveNavToUrl();
             const target = crumbs[crumbs.length - 1];
             view.value = 'grid';
             selectedIds.value = [];
@@ -203,11 +208,18 @@ createApp({
 
             // Normal app session
             isLoggedIn.value = true;
-            const savedCrumbs = loadBreadcrumbsFromUrl();
-            if (savedCrumbs && savedCrumbs.length > 0) {
-                breadcrumbs.value = savedCrumbs;
-                currentDirectoryId.value = savedCrumbs[savedCrumbs.length - 1].id;
+            const saved = loadNavFromUrl();
+            if (saved && saved.crumbs.length > 0) {
+                breadcrumbs.value = saved.crumbs;
+                currentDirectoryId.value = saved.crumbs[saved.crumbs.length - 1].id;
                 await loadDirectory(currentDirectoryId.value);
+                if (saved.fileId) {
+                    const file = files.value.find(f => f.id === saved.fileId);
+                    if (file) {
+                        selectedFile.value = file;
+                        view.value = 'viewer';
+                    }
+                }
             } else {
                 await loadDirectory();
             }
