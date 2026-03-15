@@ -40,7 +40,6 @@ from supernote.models.file_web import (
 from supernote.server.constants import (
     CATEGORY_CONTAINERS,
     ORDERED_WEB_ROOT,
-    SYSTEM_DIR_DISPLAY_NAMES,
 )
 from supernote.server.exceptions import SupernoteError
 from supernote.server.services.file import (
@@ -298,16 +297,11 @@ async def handle_file_list_query(request: web.Request) -> web.Response:
 
         user_file_vos: list[UserFileVO] = []
         for entity in page_items:
-            display_name = (
-                SYSTEM_DIR_DISPLAY_NAMES.get(entity.name, entity.name)
-                if entity.parent_id == 0
-                else entity.name
-            )
             user_file_vos.append(
                 UserFileVO(
                     id=str(entity.id),
                     directory_id=str(entity.parent_id),
-                    file_name=display_name,
+                    file_name=entity.name,
                     size=entity.size,
                     md5=entity.md5,
                     inner_name=entity.storage_key,
@@ -445,10 +439,6 @@ async def handle_folder_list_query(request: web.Request) -> web.Response:
                         child.entity.parent_id = 0  # View adjustment
                         folder_details.append(child)
                 else:
-                    if detail.entity.name in SYSTEM_DIR_DISPLAY_NAMES:
-                        detail.entity.name = SYSTEM_DIR_DISPLAY_NAMES[
-                            detail.entity.name
-                        ]
                     folder_details.append(detail)
 
         folder_details.sort(key=_root_sort_key)

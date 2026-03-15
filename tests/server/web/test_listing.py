@@ -96,12 +96,12 @@ async def test_file_list_query_root(
         f.file_name for f in res.user_file_vo_list if f.is_folder == BooleanEnum.YES
     ] == [
         "Document",
-        "Export",
+        "EXPORT",
         "FolderRoot",
-        "Inbox",
+        "INBOX",
         "MyStyle",
         "Note",
-        "Screenshot",
+        "SCREENSHOT",
     ]
 
 
@@ -122,9 +122,9 @@ async def test_list_query_returns_default_folders(
     ]
 
     # Verify all six visible folders are present in flattened view
-    assert "Export" in folders
-    assert "Inbox" in folders
-    assert "Screenshot" in folders
+    assert "EXPORT" in folders
+    assert "INBOX" in folders
+    assert "SCREENSHOT" in folders
     assert "Note" in folders
     assert "Document" in folders
     assert "MyStyle" in folders
@@ -134,7 +134,7 @@ async def test_list_query_returns_default_folders(
     assert "DOCUMENT" not in folders
 
     # Verify each default folder has correct properties
-    for folder_name in ["Export", "Inbox", "Screenshot", "Note", "Document", "MyStyle"]:
+    for folder_name in ["EXPORT", "INBOX", "SCREENSHOT", "Note", "Document", "MyStyle"]:
         folder_vo = next(f for f in res.user_file_vo_list if f.file_name == folder_name)
         assert folder_vo.is_folder == BooleanEnum.YES
         assert folder_vo.id is not None
@@ -354,7 +354,7 @@ async def test_path_query_flattening(
 async def test_system_dir_name_not_applied_to_user_folders(
     web_client: WebClient,
 ) -> None:
-    """Verify that system display names (e.g. 'Export') are not applied to user-created
+    """Verify that system folder names are not applied to user-created
     folders that happen to share a name with a system directory."""
     parent = await web_client.create_folder(parent_id=0, name="MyParent")
     parent_id = int(parent.id)
@@ -386,9 +386,9 @@ async def test_list_query_flattening(
     ]
 
     # Verify all categorized folders are at root level
-    assert "Export" in folder_names
-    assert "Inbox" in folder_names
-    assert "Screenshot" in folder_names
+    assert "EXPORT" in folder_names
+    assert "INBOX" in folder_names
+    assert "SCREENSHOT" in folder_names
     assert "Note" in folder_names
     assert "Document" in folder_names
     assert "MyStyle" in folder_names

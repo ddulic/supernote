@@ -15,12 +15,12 @@ async def test_web_rename(web_client: WebClient) -> None:
     # Verify name change
     list_res = await web_client.list_query(directory_id=0)
     assert [f.file_name for f in list_res.user_file_vo_list] == [
-        "Screenshot",
+        "SCREENSHOT",
         "Note",
         "NewName",  # New folder
         "MyStyle",
-        "Inbox",
-        "Export",
+        "INBOX",
+        "EXPORT",
         "Document",
     ]
 
@@ -95,13 +95,13 @@ async def test_web_folder_list_query_spec(web_client: WebClient) -> None:
 
     # Check for presence and capitalization
     names = [f.file_name for f in folders]
-    assert names == ["Note", "Document", "Export", "Inbox", "MyStyle", "Screenshot"]
+    assert names == ["Note", "Document", "EXPORT", "INBOX", "MyStyle", "SCREENSHOT"]
 
     # Exclusion Filter (idList)
     note_id = int(next(f for f in folders if f.file_name == "Note").id)
     res_excl = await web_client.folder_list_query(directory_id=0, id_list=[note_id])
     names_excl = [f.file_name for f in res_excl.folder_vo_list]
-    assert names_excl == ["Document", "Export", "Inbox", "MyStyle", "Screenshot"]
+    assert names_excl == ["Document", "EXPORT", "INBOX", "MyStyle", "SCREENSHOT"]
 
     # Self-Exclusion (Folder hidden when in id_list)
     # Create a folder
@@ -118,10 +118,10 @@ async def test_web_folder_list_query_spec(web_client: WebClient) -> None:
     assert names_self_excl == [
         "Note",
         "Document",
-        "Export",
-        "Inbox",
+        "EXPORT",
+        "INBOX",
         "MyStyle",
-        "Screenshot",
+        "SCREENSHOT",
     ]
 
     # isEmpty Lookahead (sub-folders only)
