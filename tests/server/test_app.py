@@ -144,3 +144,25 @@ async def test_upload_url_with_port_in_forwarded_host(
     assert full_upload_url.startswith("http://localhost:9888"), (
         f"Got URL: {full_upload_url}"
     )
+
+
+async def test_static_js_no_cache_header(client: TestClient) -> None:
+    """JS files must be served with Cache-Control: no-store so that Firefox's
+    ES module registry does not serve stale code when DevTools cache is disabled."""
+    resp = await client.get("/static/js/main.js")
+    assert resp.status == 200
+    assert resp.headers.get("Cache-Control") == "no-store"
+
+
+async def test_static_css_no_cache_header(client: TestClient) -> None:
+    """style.css should also carry Cache-Control: no-store."""
+    resp = await client.get("/static/style.css")
+    assert resp.status == 200
+    assert resp.headers.get("Cache-Control") == "no-store"
+
+
+async def test_static_non_js_no_cache_header_absent(client: TestClient) -> None:
+    """Non-JS/CSS static assets (e.g. favicon) should not have the no-store header."""
+    resp = await client.get("/static/favicon.ico")
+    assert resp.status == 200
+    assert resp.headers.get("Cache-Control") != "no-store"

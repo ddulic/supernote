@@ -27,7 +27,8 @@ createApp({
         const { addToast } = useToast();
 
         // Theme
-        const isDarkMode = ref(localStorage.getItem('theme') === 'dark');
+        const savedTheme = localStorage.getItem('theme');
+        const isDarkMode = ref(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
         function applyTheme(dark) {
             document.documentElement.classList.toggle('dark', dark);
         }
