@@ -19,6 +19,7 @@ class SupernoteAuthorizationCode(AuthorizationCode):
 
 class SupernoteAccessToken(AccessToken):
     user_id: str
+    refresh_token: Optional[str] = None
 
 
 class SupernoteRefreshToken(RefreshToken):

@@ -1,4 +1,4 @@
-import { fetchApiKeys, createApiKey, deleteApiKey } from '../api/client.js';
+import { fetchApiKeys, createApiKey, deleteApiKey, fetchOAuthSessions, deleteOAuthSession } from '../api/client.js';
 import { useToast } from '../composables/useToast.js';
 
 const { addToast } = useToast();
@@ -86,6 +86,37 @@ export default {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Connected OAuth Sessions -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Connected Sessions</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">OAuth clients connected via the browser login flow (e.g. claude.ai). Disconnecting revokes the refresh token — the client will need to re-authenticate.</p>
+                        <div v-if="sessionsLoading" class="flex justify-center p-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        </div>
+                        <div v-else-if="sessions.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+                            No active sessions.
+                        </div>
+                        <div v-else class="divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                            <div v-for="session in sessions" :key="session.id" class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ session.client_name }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Connected {{ formatDate(session.created_at * 1000) }}
+                                        <span class="mx-1">·</span>
+                                        Expires {{ formatDate(session.expires_at * 1000) }}
+                                    </p>
+                                </div>
+                                <button
+                                    @click="handleDisconnect(session)"
+                                    :disabled="disconnectingId === session.id"
+                                    class="ml-4 shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors disabled:opacity-50"
+                                >
+                                    {{ disconnectingId === session.id ? 'Disconnecting…' : 'Disconnect' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Footer -->
@@ -107,10 +138,13 @@ export default {
             newKey: null,
             copied: false,
             deletingId: null,
+            sessions: [],
+            sessionsLoading: true,
+            disconnectingId: null,
         };
     },
     async mounted() {
-        await this.loadKeys();
+        await Promise.all([this.loadKeys(), this.loadSessions()]);
     },
     methods: {
         async loadKeys() {
@@ -122,6 +156,17 @@ export default {
                 console.error('Failed to load API keys:', e);
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadSessions() {
+            this.sessionsLoading = true;
+            try {
+                const data = await fetchOAuthSessions();
+                this.sessions = data.sessions || [];
+            } catch (e) {
+                console.error('Failed to load OAuth sessions:', e);
+            } finally {
+                this.sessionsLoading = false;
             }
         },
         async handleCreate() {
@@ -152,6 +197,18 @@ export default {
                 addToast('Failed to revoke key', e.message);
             } finally {
                 this.deletingId = null;
+            }
+        },
+        async handleDisconnect(session) {
+            if (!confirm(`Disconnect "${session.client_name}"? It will need to re-authenticate.`)) return;
+            this.disconnectingId = session.id;
+            try {
+                await deleteOAuthSession(session.id);
+                this.sessions = this.sessions.filter(s => s.id !== session.id);
+            } catch (e) {
+                addToast('Failed to disconnect session', e.message);
+            } finally {
+                this.disconnectingId = null;
             }
         },
         async copyKey() {

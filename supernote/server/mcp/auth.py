@@ -14,6 +14,7 @@ from mcp.server.auth.provider import (
     RefreshToken,
 )
 from mcp.server.auth.routes import cors_middleware, create_auth_routes
+from mcp.server.auth.settings import ClientRegistrationOptions
 from mcp.shared.auth import (
     InvalidRedirectUriError,
     OAuthClientInformationFull,
@@ -36,6 +37,7 @@ from .models import (
     SupernoteAuthorizationCode,
     SupernoteRefreshToken,
 )
+from .oauth_session import OAuthSessionService
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,14 +71,22 @@ class SupernoteOAuthProvider(
         user_service: UserService,
         coordination_service: CoordinationService,
         issuer_url: str,
+        session_service: OAuthSessionService,
     ):
         self.user_service = user_service
         self.issuer_url = issuer_url
         self._coordination = coordination_service
+        self._sessions = session_service
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         """Retrieve client information by client ID."""
-        # Support dynamic IndieAuth-style clients (Client ID is a URL)
+        # 1. Check coordination service for dynamically registered clients
+        key = f"mcp:client:{client_id}"
+        data = await self._coordination.get_value(key)
+        if data:
+            return SupernoteOAuthClientInformationFull.model_validate_json(data)
+
+        # 2. Fall back to IndieAuth-style clients (client ID is a URL)
         try:
             parsed = urlparse(client_id)
         except ValueError:
@@ -93,8 +103,13 @@ class SupernoteOAuthProvider(
         return None
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
-        """Saves client information as part of registering it."""
-        raise NotImplementedError("Dynamic client registration not supported")
+        """Saves client information as part of dynamic client registration."""
+        key = f"mcp:client:{client_info.client_id}"
+        await self._coordination.set_value(
+            key,
+            client_info.model_dump_json(),
+            ttl=86400 * 365,
+        )
 
     async def authorize(
         self, client: OAuthClientInformationFull, params: AuthorizationParams
@@ -127,19 +142,20 @@ class SupernoteOAuthProvider(
         # In a real implementation, we would generate a JWT or random token.
         # For now, we reuse the UserService login logic or just generate a dedicated MCP token.
 
-        access_token = SupernoteAccessToken(
-            token=secrets.token_urlsafe(32),
-            user_id=authorization_code.user_id,
-            client_id=authorization_code.client_id,
-            scopes=authorization_code.scopes,
-            expires_at=int(time.time() + 3600),
-        )
         refresh_token = SupernoteRefreshToken(
             token=secrets.token_urlsafe(32),
             user_id=authorization_code.user_id,
             client_id=authorization_code.client_id,
             scopes=authorization_code.scopes,
             expires_at=int(time.time() + 86400 * 30),
+        )
+        access_token = SupernoteAccessToken(
+            token=secrets.token_urlsafe(32),
+            user_id=authorization_code.user_id,
+            client_id=authorization_code.client_id,
+            scopes=authorization_code.scopes,
+            expires_at=int(time.time() + 3600),
+            refresh_token=refresh_token.token,
         )
 
         # Store tokens
@@ -154,9 +170,14 @@ class SupernoteOAuthProvider(
             ttl=86400 * 30,
         )
 
-        # Delete auth code after use (single use only)
-        # We don't have the string code here easily, but the SDK should handle it if we return successfully.
-        # Actually, let's just let it expire or manually delete it in the bridge if needed.
+        # Register the session so it appears in the UI
+        await self._sessions.register(
+            user_id=authorization_code.user_id,
+            token=refresh_token.token,
+            client_id=authorization_code.client_id,
+            client_name=client.client_name or authorization_code.client_id,
+            expires_at=refresh_token.expires_at or int(time.time() + 86400 * 30),
+        )
 
         return OAuthToken(
             access_token=access_token.token,
@@ -191,6 +212,7 @@ class SupernoteOAuthProvider(
             client_id=refresh_token.client_id,
             scopes=scopes or refresh_token.scopes,
             expires_at=int(time.time() + 3600),
+            refresh_token=refresh_token.token,
         )
         await self._coordination.set_value(
             f"mcp:access_token:{new_access_token.token}",
@@ -212,12 +234,23 @@ class SupernoteOAuthProvider(
         data = await self._coordination.get_value(key)
         if not data:
             return None
-        return SupernoteAccessToken.model_validate_json(data)
+        access_token = SupernoteAccessToken.model_validate_json(data)
+        # 2. If the access token is linked to a refresh token, verify it hasn't been revoked
+        if access_token.refresh_token:
+            rt_data = await self._coordination.get_value(
+                f"mcp:refresh_token:{access_token.refresh_token}"
+            )
+            if not rt_data:
+                return None
+        return access_token
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
         """Revokes an access or refresh token."""
-        # TODO: Implement token revocation in UserService/CoordinationService
-        pass
+        if isinstance(token, SupernoteRefreshToken):
+            await self._coordination.delete_value(f"mcp:refresh_token:{token.token}")
+            await self._sessions.revoke_by_token(token.user_id, token.token)
+        elif isinstance(token, SupernoteAccessToken):
+            await self._coordination.delete_value(f"mcp:access_token:{token.token}")
 
 
 def create_auth_app(
@@ -225,12 +258,20 @@ def create_auth_app(
     coordination_service: CoordinationService,
     issuer_url: str,
     main_base_url: str,
+    session_service: OAuthSessionService,
 ) -> Starlette:
     """Create a Starlette app for the MCP Authorization Server."""
-    provider = SupernoteOAuthProvider(user_service, coordination_service, issuer_url)
+    provider = SupernoteOAuthProvider(
+        user_service, coordination_service, issuer_url, session_service
+    )
     routes = create_auth_routes(
         provider=provider,
         issuer_url=AnyHttpUrl(issuer_url),
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["supernote:all"],
+            default_scopes=["supernote:all"],
+        ),
     )
 
     # The MCP library hardcodes token_endpoint_auth_methods_supported without "none",
@@ -241,6 +282,7 @@ def create_auth_app(
         issuer=AnyHttpUrl(issuer_url),
         authorization_endpoint=AnyHttpUrl(f"{base}/authorize"),
         token_endpoint=AnyHttpUrl(f"{base}/token"),
+        registration_endpoint=AnyHttpUrl(f"{base}/register"),
         response_types_supported=["code"],
         grant_types_supported=["authorization_code", "refresh_token"],
         token_endpoint_auth_methods_supported=[
@@ -249,6 +291,7 @@ def create_auth_app(
             "none",
         ],
         code_challenge_methods_supported=["S256"],
+        scopes_supported=["supernote:all"],
     )
     routes[0] = Route(
         "/.well-known/oauth-authorization-server",
@@ -282,7 +325,11 @@ def create_auth_app(
 
             # Not logged in: Redirect to web UI login page (always on main_base_url,
             # even when this login-bridge is served from the MCP server domain).
-            login_url = f"{main_base_url}/#login?return_to={quote(str(request.url))}"
+            # Use issuer_url to build return_to so the scheme matches the public URL
+            # (e.g. https://), not the internal http:// seen behind a reverse proxy.
+            query_string = str(request.url.query)
+            bridge_url = f"{issuer_url.rstrip('/')}/login-bridge?{query_string}"
+            login_url = f"{main_base_url}/#login?return_to={quote(bridge_url)}"
             return RedirectResponse(url=login_url)
 
         # Extract OAuth params from query

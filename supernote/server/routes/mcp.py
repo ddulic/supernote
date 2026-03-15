@@ -1,9 +1,10 @@
-"""Routes for managing MCP API keys."""
+"""Routes for managing MCP API keys and OAuth sessions."""
 
 from aiohttp import web
 
 from supernote.models.base import BaseResponse, create_error_response
 from supernote.server.mcp.api_key import ApiKeyService
+from supernote.server.mcp.oauth_session import OAuthSessionService
 
 routes = web.RouteTableDef()
 
@@ -77,5 +78,45 @@ async def handle_delete_api_key(request: web.Request) -> web.Response:
     if not deleted:
         return web.json_response(
             create_error_response("Key not found").to_dict(), status=404
+        )
+    return web.json_response(BaseResponse().to_dict())
+
+
+@routes.get("/api/mcp/oauth-sessions")
+async def handle_list_oauth_sessions(request: web.Request) -> web.Response:
+    """List active OAuth sessions (connected MCP clients) for the authenticated user.
+
+    Response:
+        {"sessions": [{"id": "...", "client_name": "...", "created_at": <unix>, "expires_at": <unix>}]}
+    """
+    account = request.get("user")
+    if not account:
+        return web.json_response(
+            create_error_response("Unauthorized").to_dict(), status=401
+        )
+
+    session_service: OAuthSessionService = request.app["oauth_session_service"]
+    sessions = await session_service.list_sessions(str(account))
+    return web.json_response({"sessions": sessions})
+
+
+@routes.delete("/api/mcp/oauth-sessions/{session_id}")
+async def handle_delete_oauth_session(request: web.Request) -> web.Response:
+    """Revoke an OAuth session by its ID.
+
+    Returns 404 if the session does not exist or belongs to another user.
+    """
+    account = request.get("user")
+    if not account:
+        return web.json_response(
+            create_error_response("Unauthorized").to_dict(), status=401
+        )
+
+    session_id = request.match_info["session_id"]
+    session_service: OAuthSessionService = request.app["oauth_session_service"]
+    deleted = await session_service.revoke(str(account), session_id)
+    if not deleted:
+        return web.json_response(
+            create_error_response("Session not found").to_dict(), status=404
         )
     return web.json_response(BaseResponse().to_dict())

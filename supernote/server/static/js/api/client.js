@@ -507,6 +507,36 @@ export async function deleteApiKey(keyId) {
 }
 
 /**
+ * MCP OAuth session management
+ */
+export async function fetchOAuthSessions() {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/mcp/oauth-sessions', {
+        method: 'GET',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.statusText}`);
+    return await response.json();
+}
+
+export async function deleteOAuthSession(sessionId) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch(`/api/mcp/oauth-sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to revoke session: ${response.statusText}`);
+}
+
+/**
  * Fetch processing status for a list of files.
  * @param {Array<number>} fileIds
  * @returns {Promise<{success: boolean, statusMap: Object}>}
