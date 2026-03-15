@@ -374,6 +374,33 @@ def create_app(config: ServerConfig) -> web.Application:
     app.router.add_get("/", handle_index)
     app.router.add_static("/static/", path=static_path, name="static")
 
+    # MCP OAuth routes are served by an ASGI resource registered during startup.
+    # Register explicit proxy handlers for them here so they take priority over
+    # the SPA catch-all below, which is registered last and matches everything.
+    async def asgi_proxy(request: web.Request) -> web.StreamResponse:
+        asgi_handle = request.app.get("_asgi_handle")
+        if asgi_handle is not None:
+            result: web.StreamResponse = await asgi_handle(request)
+            return result
+        raise web.HTTPNotFound()
+
+    for _path in (
+        "/.well-known/{tail:.*}",
+        "/authorize",
+        "/token",
+        "/register",
+        "/login-bridge",
+    ):
+        app.router.add_route("*", _path, asgi_proxy)
+
+    # SPA fallback: serves index.html for all remaining paths so that
+    # client-side routes (e.g. /Note/myfile.note) work on direct load/refresh.
+    @public_route
+    async def handle_spa_fallback(request: web.Request) -> web.FileResponse:
+        return web.FileResponse(static_path / "index.html")
+
+    app.router.add_get("/{path_info:.*}", handle_spa_fallback)
+
     # Register Middlewares
     async def on_startup_handler(app: web.Application) -> None:
         # Configure proxy middleware based on config
@@ -411,6 +438,7 @@ def create_app(config: ServerConfig) -> web.Application:
         )
         asgi_resource = ASGIResource(auth_app)
         app.router.register_resource(asgi_resource)
+        app["_asgi_handle"] = asgi_resource._handle
 
         # Inject services and start MCP server on a separate port
         set_services(

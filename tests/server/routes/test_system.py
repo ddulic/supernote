@@ -123,3 +123,21 @@ async def test_csrf_tokens_are_unique(client: TestClient) -> None:
     resp1 = await client.get("/api/csrf")
     resp2 = await client.get("/api/csrf")
     assert resp1.headers["X-XSRF-TOKEN"] != resp2.headers["X-XSRF-TOKEN"]
+
+
+@pytest.mark.asyncio
+async def test_spa_fallback_serves_index(client: TestClient) -> None:
+    """Unknown paths return index.html so client-side routing works on refresh."""
+    resp = await client.get("/Note/myfile.note")
+    assert resp.status == 200
+    text = await resp.text()
+    assert "<html" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_spa_fallback_nested_path(client: TestClient) -> None:
+    """Nested SPA paths also serve index.html."""
+    resp = await client.get("/Folder/SubFolder/deep")
+    assert resp.status == 200
+    text = await resp.text()
+    assert "<html" in text.lower()
