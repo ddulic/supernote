@@ -252,3 +252,60 @@ async def test_cleanup_loop_handles_run_once_exception(temp_dir: Path) -> None:
     await service.stop()
 
     assert call_count >= 2, "Loop should have continued after run_once raised"
+
+
+async def test_cleanup_loop_exits_via_shutdown_check_after_sleep(
+    temp_dir: Path,
+) -> None:
+    """When shutdown is set during sleep, the post-sleep check breaks before run_once."""
+    import supernote.server.services.cleanup as cleanup_module
+
+    service = TempFileCleanupService(
+        scan_dir=temp_dir, ttl_seconds=60, interval_seconds=0
+    )
+
+    run_once_called = False
+
+    async def mock_run_once() -> None:
+        nonlocal run_once_called
+        run_once_called = True
+
+    service.run_once = mock_run_once  # type: ignore[method-assign]
+
+    async def shutdown_during_sleep(_: float) -> None:
+        service._shutdown_event.set()
+
+    with patch.object(cleanup_module.asyncio, "sleep", shutdown_during_sleep):
+        await service._cleanup_loop()
+
+    assert not run_once_called, (
+        "run_once should not be called when shutdown set after sleep"
+    )
+
+
+async def test_cleanup_loop_exits_on_cancelled_error_from_run_once(
+    temp_dir: Path,
+) -> None:
+    """CancelledError raised by run_once() exits the loop cleanly."""
+    service = TempFileCleanupService(
+        scan_dir=temp_dir, ttl_seconds=60, interval_seconds=0
+    )
+
+    async def cancelling_run_once() -> None:
+        raise asyncio.CancelledError()
+
+    service.run_once = cancelling_run_once  # type: ignore[method-assign]
+
+    # _cleanup_loop should handle CancelledError and return without propagating
+    await service._cleanup_loop()
+
+
+async def test_run_once_ignores_stat_file_not_found(temp_dir: Path) -> None:
+    """FileNotFoundError from path.stat() during scan should be silently ignored."""
+    chunk = temp_dir / "vanishing.part.1"
+    chunk.write_bytes(b"data")
+
+    service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
+
+    with patch.object(Path, "stat", side_effect=FileNotFoundError("already gone")):
+        await service.run_once()  # Must not raise

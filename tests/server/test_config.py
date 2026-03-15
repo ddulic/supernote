@@ -130,3 +130,18 @@ def test_server_config_quota_env_var_invalid_value(tmp_path: Path) -> None:
     with patch.dict(os.environ, {"SUPERNOTE_DEFAULT_QUOTA_BYTES": "not-a-number"}):
         config = ServerConfig.load(config_dir)
         assert config.default_quota_bytes == 10737418240  # default 10 GB
+
+
+def test_server_config_temp_cleanup_env_vars_invalid(tmp_path: Path) -> None:
+    """Invalid (non-integer) temp cleanup env vars should fall back to defaults."""
+    config_dir = tmp_path / "config"
+    with patch.dict(
+        os.environ,
+        {
+            "SUPERNOTE_TEMP_CLEANUP_INTERVAL": "not-a-number",
+            "SUPERNOTE_TEMP_TTL": "not-a-number",
+        },
+    ):
+        config = ServerConfig.load(config_dir)
+        assert config.temp_cleanup_interval_seconds == 3600  # default
+        assert config.temp_ttl_seconds == 86400  # default
