@@ -162,7 +162,9 @@ async def test_run_once_handles_missing_scan_dir(tmp_path: Path) -> None:
 async def test_run_once_handles_file_disappearing_between_stat_and_unlink(
     temp_dir: Path,
 ) -> None:
-    """FileNotFoundError from stat() should be silently ignored."""
+    """FileNotFoundError from stat() during processing should be silently ignored."""
+    import stat as stat_module
+
     chunk = temp_dir / "race.part.1"
     chunk.write_bytes(b"data")
     old_mtime = time.time() - 120
@@ -170,10 +172,12 @@ async def test_run_once_handles_file_disappearing_between_stat_and_unlink(
 
     original_stat = Path.stat
 
-    def stat_then_delete(self: Path, **kwargs: object) -> object:
+    def stat_then_delete(self: Path, *args: object, **kwargs: object) -> object:
         result = original_stat(self)
-        # Simulate the file vanishing between is_file()/stat() and unlink()
-        self.unlink(missing_ok=True)
+        # Use st_mode to identify regular files without calling is_file() (which
+        # would recurse). Only delete .part.* files to avoid touching the scan dir.
+        if stat_module.S_ISREG(result.st_mode) and ".part." in self.name:
+            self.unlink(missing_ok=True)
         return result
 
     service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
@@ -184,7 +188,7 @@ async def test_run_once_handles_file_disappearing_between_stat_and_unlink(
 async def test_run_once_handles_unexpected_exception_during_delete(
     temp_dir: Path,
 ) -> None:
-    """Unexpected exceptions from stat() should be logged, not propagated."""
+    """Unexpected exceptions from unlink() should be logged, not propagated."""
     chunk = temp_dir / "broken.part.2"
     chunk.write_bytes(b"data")
     old_mtime = time.time() - 120
@@ -192,10 +196,11 @@ async def test_run_once_handles_unexpected_exception_during_delete(
 
     service = TempFileCleanupService(scan_dir=temp_dir, ttl_seconds=60)
 
-    with patch.object(Path, "stat", side_effect=PermissionError("denied")):
+    # Patch unlink to raise PermissionError — caught by the broad except clause
+    with patch.object(Path, "unlink", side_effect=PermissionError("denied")):
         await service.run_once()  # Should not raise
 
-    # File should still exist since stat() failed before unlink
+    # File should still exist since unlink() raised before deletion
     assert chunk.exists()
 
 
