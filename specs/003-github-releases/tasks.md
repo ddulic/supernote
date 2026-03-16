@@ -68,9 +68,10 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [x] T007 Commit all changes with message: `chore: proper github releases, versioned docker tags, remove stale artifacts`
-- [ ] T008 Open PR from `003-github-releases` → `main` and confirm CI (lint + test) passes
-- [ ] T009 After PR is merged to `main`, create the initial release: `gh release create v1.0.0 --title "v1.0.0" --notes "Initial release." --latest` — this fires `release: published` and triggers the Docker build pipeline
+- [x] T007 Create `.github/workflows/release.yaml` — triggers on `push: tags: v*.*.*`, auto-creates GitHub release with generated notes via `softprops/action-gh-release`
+- [x] T008 Commit all changes
+- [ ] T009 Open PR from `003-github-releases` → `main` and confirm CI (lint + test) passes
+- [ ] T010 After PR is merged, create the initial release by pushing the tag: `git tag v1.0.0 && git push origin v1.0.0` — `release.yaml` creates the GitHub release, which then triggers Docker and PyPI publish automatically
 
 **Checkpoint**: `v1.0.0` release live on GitHub; container image available in ghcr.io with all four version tags.
 
