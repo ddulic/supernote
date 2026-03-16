@@ -2,11 +2,19 @@
 
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from supernote.notebook import fileformat
-from supernote.notebook.manipulator import NotebookBuilder, merge, reconstruct
+from supernote.notebook.manipulator import (
+    NotebookBuilder,
+    _pack_backgrounds,
+    _pack_keywords,
+    _pack_pages,
+    merge,
+    reconstruct,
+)
 from supernote.notebook.parser import load, load_notebook
 
 # ---------------------------------------------------------------------------
@@ -146,6 +154,121 @@ def test_reconstruct_roundtrip(test_note_path: Path) -> None:
     stream = BytesIO(result)
     reparsed = load(stream)  # type: ignore[arg-type]
     assert reparsed.get_total_pages() == notebook.get_total_pages()
+
+
+def test_notebook_builder_append_third_duplicate() -> None:
+    """Third append with allow_duplicate appends to existing list (not replaces)."""
+    builder = NotebookBuilder()
+    builder.append("dup", b"first", allow_duplicate=True)
+    builder.append("dup", b"second", allow_duplicate=True)
+    # At this point toc["dup"] is a list [addr1, addr2]
+    builder.append("dup", b"third", allow_duplicate=True)
+    assert isinstance(builder.toc["dup"], list)
+    assert len(builder.toc["dup"]) == 3
+
+
+def test_pack_keywords_sets_keyword_metadata() -> None:
+    """_pack_keywords updates keyword metadata when content is not None."""
+    builder = NotebookBuilder()
+    notebook = MagicMock()
+    keyword = MagicMock()
+    keyword.get_page_number.return_value = 0
+    keyword.get_position_string.return_value = "ABCD"
+    keyword.get_content.return_value = b"keyword content"
+    keyword.metadata = {}
+    notebook.get_keywords.return_value = [keyword]
+    _pack_keywords(builder, notebook)
+    assert keyword.metadata["KEYWORDPAGE"] == "1"
+
+
+def test_pack_backgrounds_skips_none_style() -> None:
+    """_pack_backgrounds skips pages whose get_style() returns None."""
+    builder = NotebookBuilder()
+    notebook = MagicMock()
+    page = MagicMock()
+    page.get_style.return_value = None
+    notebook.get_total_pages.return_value = 1
+    notebook.get_page.return_value = page
+    _pack_backgrounds(builder, notebook)
+    # No block appended since style is None
+    assert builder.get_total_size() == 0
+
+
+def test_pack_backgrounds_user_style_appends_hash() -> None:
+    """_pack_backgrounds appends style_hash for user_ styles."""
+    builder = NotebookBuilder()
+    notebook = MagicMock()
+    page = MagicMock()
+    page.get_style.return_value = "user_custom"
+    page.get_style_hash.return_value = "abc123"
+    page.get_layers.return_value = []
+
+    def find_bg(p: MagicMock) -> bytes:
+        return b"bg"
+
+    notebook.get_total_pages.return_value = 1
+    notebook.get_page.return_value = page
+
+    from unittest.mock import patch
+
+    from supernote.notebook import manipulator
+
+    with patch.object(
+        manipulator, "_find_background_content_from_page", return_value=b"bg"
+    ):
+        _pack_backgrounds(builder, notebook)
+
+    assert builder.get_total_size() > 0
+
+
+def test_pack_pages_bglayer_skips_none_style() -> None:
+    """_pack_pages skips BGLAYER when page style is None."""
+    builder = NotebookBuilder()
+    notebook = MagicMock()
+    page = MagicMock()
+    bglayer = MagicMock()
+    bglayer.get_name.return_value = "BGLAYER"
+    page.get_style.return_value = None
+    page.get_layers.return_value = [bglayer]
+    page.get_totalpath.return_value = None
+    page.metadata = {"__layers__": []}
+    notebook.get_total_pages.return_value = 1
+    notebook.get_page.return_value = page
+
+    from unittest.mock import patch
+
+    from supernote.notebook import manipulator
+
+    with patch.object(manipulator.utils, "WorkaroundPageWrapper") as mock_wrapper:
+        mock_wrapper.from_page.return_value = page
+        _pack_pages(builder, notebook)
+
+
+def test_pack_pages_bglayer_user_style_appends_hash() -> None:
+    """_pack_pages appends style_hash for BGLAYER with user_ style."""
+    builder = NotebookBuilder()
+    notebook = MagicMock()
+    page = MagicMock()
+    bglayer = MagicMock()
+    bglayer.get_name.return_value = "BGLAYER"
+    bglayer.metadata = {}
+    page.get_style.return_value = "user_template"
+    page.get_style_hash.return_value = "xyz"
+    page.get_layers.return_value = [bglayer]
+    page.get_totalpath.return_value = None
+    page.metadata = {"__layers__": []}
+    notebook.get_total_pages.return_value = 1
+    notebook.get_page.return_value = page
+
+    from unittest.mock import patch
+
+    from supernote.notebook import manipulator
+
+    with patch.object(manipulator.utils, "WorkaroundPageWrapper") as mock_wrapper:
+        mock_wrapper.from_page.return_value = page
+        _pack_pages(builder, notebook)
+
+    assert bglayer.metadata.get("LAYERNAME") == "BGLAYER"
 
 
 def test_merge_notebook_with_itself(test_note_path: Path) -> None:
