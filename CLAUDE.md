@@ -1,8 +1,9 @@
 # supernote Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-15
+Auto-generated from all feature plans. Last updated: 2026-03-16
 
 ## Active Technologies
+- N/A (no Python source changes) + GitHub Dependabot (native GitHub feature, no external service) (002-switch-dependabot)
 
 - Python 3.13+ + mypy (strict), SQLAlchemy asyncio, aiohttp, mashumaro, pytest + pytest-asyncio (001-constitution-alignment)
 
@@ -43,6 +44,7 @@ supernote serve --ephemeral # Ephemeral server with debug@example.com / password
 - **Logging**: `logging.getLogger(__name__)`; NEVER log note content
 
 ## Recent Changes
+- 002-switch-dependabot: Added N/A (no Python source changes) + GitHub Dependabot (native GitHub feature, no external service)
 
 - 001-constitution-alignment: Added Python 3.13+ + mypy (strict), SQLAlchemy asyncio, aiohttp, mashumaro, pytest + pytest-asyncio
 
