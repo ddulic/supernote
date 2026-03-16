@@ -76,10 +76,6 @@ Run command to login:
   supernote cloud login --url http://127.0.0.1:8080 debug@example.com --password password
 ```
 
-### AI Skills & Agentic Coding
-
-This project includes "AI Skills" to help developers (and AI agents) interact with the codebase effectively. See `.agent/skills` for more details on how we structure these for automated development.
-
 ### Uploading Files
 
 Test the sync flow using the CLI:
