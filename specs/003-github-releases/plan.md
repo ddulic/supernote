@@ -5,19 +5,19 @@
 
 ## Summary
 
-Implement proper versioned GitHub releases for the Supernote project: fix the Docker workflow to remove the duplicate tag-push trigger (keeping only `release: published`), align the PyPI publish workflow to the same event, remove four stale repository files (Cruft config, Cruft workflow, Copilot instructions, failed-sync artifact), and create the initial `v1.0.0` release after the changes are merged.
+Implement fully automated GitHub releases for the Supernote project using release-please: add a `release-please.yaml` workflow that analyses conventional commits on every push to `main`, automatically creates release PRs with changelogs, and publishes a GitHub release when merged. Fix the Docker workflow to remove the duplicate tag-push trigger (keeping only `release: published`), align the PyPI publish workflow to the same event, bump `pyproject.toml` to `1.0.0` as the baseline version, and remove three stale repository files (Cruft config, Cruft workflow, Copilot instructions).
 
 ## Technical Context
 
 **Language/Version**: N/A (no Python source changes — CI/CD configuration only)
-**Primary Dependencies**: GitHub Actions (`docker/metadata-action`, `docker/build-push-action`, `docker/login-action`)
+**Primary Dependencies**: GitHub Actions (`googleapis/release-please-action`, `docker/metadata-action`, `docker/build-push-action`, `docker/login-action`)
 **Storage**: N/A
 **Testing**: Workflow validation via GitHub Actions run logs; no unit tests applicable to CI/CD files
 **Target Platform**: GitHub Actions (ubuntu-latest runners)
 **Project Type**: CI/CD configuration
 **Performance Goals**: N/A
 **Constraints**: Must not break existing PR builds or main-branch edge builds; `v*.*.*` tags MUST only produce images on `release: published`
-**Scale/Scope**: 4 files removed, 2 workflow files modified, 1 release created
+**Scale/Scope**: 3 files removed, 2 workflow files modified, 1 workflow added, 2 release-please config files added, `pyproject.toml` version bumped
 
 ## Constitution Check
 
@@ -53,16 +53,19 @@ specs/003-github-releases/
 ```text
 .github/
 ├── workflows/
-│   ├── docker.yaml      # MODIFY: remove push:tags trigger, keep release:published
-│   ├── publish.yaml     # MODIFY: change types:[created] → types:[published]
-│   └── cruft.yaml       # DELETE
-├── copilot-instructions.md  # DELETE
-└── failed-sync.md           # DELETE
+│   ├── release-please.yaml  # ADD: triggers on push to main, runs release-please
+│   ├── docker.yaml          # MODIFY: remove push:tags trigger, keep release:published
+│   ├── publish.yaml         # MODIFY: change types:[created] → types:[published]
+│   └── cruft.yaml           # DELETE
+└── copilot-instructions.md  # DELETE
 
+.release-please-config.json  # ADD: release-please package config (initial-version: 1.0.0)
+.release-please-manifest.json # ADD: release-please version manifest (empty = first run)
 .cruft.json                  # DELETE (repo root)
+pyproject.toml               # MODIFY: version bumped from 0.14.8 → 1.0.0
 ```
 
-**Structure Decision**: Pure CI/CD change — no new source directories, no new Python modules.
+**Structure Decision**: Pure CI/CD and config change — no new source directories, no new Python modules. `failed-sync.md` was already absent at implementation time.
 
 ## Phase 0: Research
 
@@ -71,8 +74,8 @@ See [research.md](research.md) for full findings. Key decisions:
 1. **Duplicate trigger fix**: Remove `push: tags: v*.*.*` from `docker.yaml`; `release: published` is the sole versioned build trigger (Finding 1).
 2. **`latest` tag**: Current `latest=true` flavor is correct for the project's needs (Finding 2).
 3. **PyPI workflow alignment**: Change `publish.yaml` from `types: [created]` to `types: [published]` (Finding 3).
-4. **File removals**: Four stale files confirmed for deletion (Finding 4).
-5. **Release sequence**: `v1.0.0` release is created via `gh release create` after the PR is merged to `main` (Finding 5).
+4. **File removals**: Three stale files confirmed for deletion; `failed-sync.md` was already absent (Finding 4).
+5. **Automated releases via release-please**: Replace manual `gh release create` with `googleapis/release-please-action` — analyses conventional commits, creates release PRs, and publishes GitHub releases automatically (Finding 5 — updated after implementation).
 
 ## Phase 1: Design
 
@@ -136,28 +139,56 @@ on:
     types: [published]
 ```
 
-#### Files to delete
+#### `release-please.yaml` — New automated release workflow
 
-| File | Action |
-|------|--------|
-| `.github/workflows/cruft.yaml` | `git rm` |
-| `.github/copilot-instructions.md` | `git rm` |
-| `.github/failed-sync.md` | `git rm` |
-| `.cruft.json` | `git rm` |
+Triggers on every push to `main`. Runs `googleapis/release-please-action@v4` with the config and manifest files. Creates or updates a release PR; merging the PR creates the git tag and GitHub release automatically.
 
-### Post-merge Release Step
+#### `.release-please-config.json` — Release-please package config
 
-After the PR is merged to `main`, create the initial release:
-
-```bash
-gh release create v1.0.0 \
-  --title "v1.0.0" \
-  --notes "Initial release." \
-  --latest
+```json
+{
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "initial-version": "1.0.0",
+      "extra-files": []
+    }
+  }
+}
 ```
 
-This fires `release: published`, which triggers the Docker workflow to build and push:
-- `ghcr.io/ddulic/supernote:v1.0.0`
-- `ghcr.io/ddulic/supernote:1.0`
-- `ghcr.io/ddulic/supernote:1`
-- `ghcr.io/ddulic/supernote:latest`
+#### `.release-please-manifest.json` — Version manifest
+
+Starts empty (`{}`) so release-please treats this as a new package and uses `initial-version: 1.0.0` for the first release.
+
+#### Files to delete
+
+| File | Action | Note |
+|------|--------|------|
+| `.github/workflows/cruft.yaml` | `git rm` | Removed |
+| `.github/copilot-instructions.md` | `git rm` | Removed |
+| `.github/failed-sync.md` | N/A | Already absent |
+| `.cruft.json` | `git rm` | Removed |
+
+#### `pyproject.toml` — Version bump
+
+Version updated from `0.14.8` → `1.0.0`. Release-please will manage this file for all future version bumps.
+
+### Automated Release Flow (Post-merge)
+
+Once this PR merges, the full release cycle is zero-touch:
+
+```
+conventional commit merged to main
+        ↓
+release-please.yaml → creates/updates Release PR with changelog
+        ↓
+Release PR merged
+        ↓
+tag v1.0.0 + GitHub Release published automatically
+        ↓
+release: published event fires
+        ↓
+docker.yaml   → ghcr.io: v1.0.0 / 1.0 / 1 / latest
+publish.yaml  → PyPI publish
+```

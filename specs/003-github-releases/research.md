@@ -57,12 +57,18 @@
 
 ---
 
-## Finding 5: Initial v1.0.0 Release
+## Finding 5: Automated Release Creation with release-please
 
-**Decision**: Create the `v1.0.0` GitHub release after the workflow changes are merged to `main`. The release is created via the GitHub UI or `gh release create`, targeting the merge commit on `main`.
+**Decision**: Use `googleapis/release-please-action@v4` to fully automate release creation. A new `release-please.yaml` workflow runs on every push to `main`, analyses conventional commits, and creates/updates a release PR. Merging the release PR automatically creates the git tag and GitHub release — no manual steps required.
 
-**Rationale**: The release must be created after the corrected workflow is live on `main`, so that the `release: published` trigger fires against the updated pipeline. Creating the tag before merging would use the old (potentially double-triggering) workflow.
+**Rationale**: The original plan called for `gh release create v1.0.0` as a manual post-merge step. During implementation the user clarified that even pushing a tag manually was undesirable, and that releases should be entirely automatic. release-please satisfies this:
+- Determines the next version from conventional commits (`feat:` → minor bump, `fix:` → patch, `feat!:` → major)
+- Creates a PR with auto-generated changelog for maintainer review before release
+- Publishes the GitHub release automatically when the release PR is merged
+- Integrates with the existing `release: published` trigger used by `docker.yaml` and `publish.yaml`
+- `initial-version: "1.0.0"` in `.release-please-config.json` ensures the first release is `v1.0.0`
 
 **Alternatives considered**:
-- Automate release creation in CI: adds complexity; releases require human curation of release notes.
-- Tag the commit on the feature branch: tags on non-main branches do not follow the project's release conventions.
+- `python-semantic-release`: fully automatic with no PR step, but less visibility into what's being released; release-please's PR-based approach is preferred for auditability.
+- Manual `gh release create` (original plan): requires a human to run a command after every merge; rejected by user.
+- Manual tag push triggering a release workflow: still requires a manual step; rejected by user.
