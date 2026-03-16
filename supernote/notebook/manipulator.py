@@ -16,36 +16,44 @@
 
 import io
 import re
+from typing import Any
 
 from . import exceptions, fileformat, parser, utils
 
 
 class NotebookBuilder:
-    def __init__(self, offset=0):
+    def __init__(self, offset: int = 0) -> None:
         self.total_size = offset
-        self.toc = {}
-        self.blocks = []
+        self.toc: dict[str, int | list[int]] = {}
+        self.blocks: list[bytes] = []
 
-    def get_total_size(self):
+    def get_total_size(self) -> int:
         return self.total_size
 
-    def get_block_address(self, label):
+    def get_block_address(self, label: str) -> int:
         if type(self.toc.get(label)) is list:
-            address = self.toc.get(label)[0]  # use first one
+            address = self.toc.get(label)[0]  # type: ignore[index]  # forked binary format; toc[label] is list[int] here
         else:
             address = self.toc.get(label)
         return address if address is not None else 0
 
-    def get_duplicate_block_address_list(self, label):
+    def get_duplicate_block_address_list(self, label: str) -> list[int]:
         if type(self.toc.get(label)) is list:
-            return self.toc.get(label)
+            return self.toc.get(label)  # type: ignore[return-value]  # forked binary format; toc[label] is list[int] here
         else:
-            return [self.toc.get(label)]
+            val = self.toc.get(label)
+            return [val]  # type: ignore[list-item]  # forked binary format; val is int here
 
-    def get_labels(self):
+    def get_labels(self) -> Any:
         return self.toc.keys()
 
-    def append(self, label, block, skip_block_size=False, allow_duplicate=False):
+    def append(
+        self,
+        label: str,
+        block: bytes | None,
+        skip_block_size: bool = False,
+        allow_duplicate: bool = False,
+    ) -> bool:
         if not label or block is None:
             raise ValueError("empty label or block is not allowed")
         label_duplicated = label in self.toc
@@ -58,10 +66,11 @@ class NotebookBuilder:
             )
         self.blocks.append(block)
         if label_duplicated:
-            if type(self.toc[label]) is list:
-                self.toc[label].append(self.total_size)
+            existing = self.toc[label]
+            if type(existing) is list:
+                existing.append(self.total_size)
             else:
-                self.toc[label] = [self.toc[label], self.total_size]
+                self.toc[label] = [existing, self.total_size]  # type: ignore[list-item]  # forked binary format; existing is int here
         else:
             self.toc.setdefault(label, self.total_size)
         self.total_size += block_size
@@ -69,16 +78,16 @@ class NotebookBuilder:
             self.total_size += fileformat.LENGTH_FIELD_SIZE
         return True
 
-    def build(self):
+    def build(self) -> bytes:
         return b"".join(self.blocks)
 
-    def dump(self):
+    def dump(self) -> None:
         print("# NotebookBuilder Dump:")
         print(f"# total_size = {self.total_size}")
         print(f"# toc = {self.toc}")
 
 
-def reconstruct(notebook):
+def reconstruct(notebook: fileformat.Notebook) -> bytes:
     """Reconstruct a notebook for debug."""
     expected_signature = parser.SupernoteXParser.SN_SIGNATURES[
         -1
@@ -107,7 +116,7 @@ def reconstruct(notebook):
     try:
         stream = io.BytesIO(reconstructed_binary)
         xparser = parser.SupernoteXParser()
-        _ = xparser.parse_stream(stream)
+        _ = xparser.parse_stream(stream)  # type: ignore[arg-type]  # upstream FileObj protocol requires seek() -> None but stdlib io types return int; functionally compatible
     except Exception as e:
         raise exceptions.GeneratedFileValidationException(
             f"generated file fails validation: {e}"
@@ -115,7 +124,7 @@ def reconstruct(notebook):
     return reconstructed_binary
 
 
-def merge(notebook1, notebook2):
+def merge(notebook1: fileformat.Notebook, notebook2: fileformat.Notebook) -> bytes:
     """Merge multiple notebooks to one."""
     # TODO: support non-X series
     metadata1 = notebook1.get_metadata()
@@ -165,7 +174,7 @@ def merge(notebook1, notebook2):
     try:
         stream = io.BytesIO(merged_binary)
         xparser = parser.SupernoteXParser()
-        _ = xparser.parse_stream(stream)
+        _ = xparser.parse_stream(stream)  # type: ignore[arg-type]  # upstream FileObj protocol requires seek() -> None but stdlib io types return int; functionally compatible
     except Exception as e:
         raise exceptions.GeneratedFileValidationException(
             f"generated file fails validation: {e}"
@@ -173,31 +182,36 @@ def merge(notebook1, notebook2):
     return merged_binary
 
 
-def _pack_type(builder, notebook):
+def _pack_type(builder: NotebookBuilder, notebook: fileformat.Notebook) -> None:
     metadata = notebook.get_metadata()
+    assert metadata.type is not None
     builder.append("__type__", metadata.type.encode("ascii"), skip_block_size=True)
 
 
-def _pack_signature(builder, notebook):
+def _pack_signature(builder: NotebookBuilder, notebook: fileformat.Notebook) -> None:
     metadata = notebook.get_metadata()
+    assert metadata.signature is not None
     builder.append(
         "__signature__", metadata.signature.encode("ascii"), skip_block_size=True
     )
 
 
-def _pack_header(builder, notebook):
+def _pack_header(builder: NotebookBuilder, notebook: fileformat.Notebook) -> None:
     metadata = notebook.get_metadata()
+    assert metadata.header is not None
     header_block = _construct_metadata_block(metadata.header)
     builder.append("__header__", header_block)
 
 
-def _pack_cover(builder, notebook):
+def _pack_cover(builder: NotebookBuilder, notebook: fileformat.Notebook) -> None:
     cover_block = notebook.get_cover().get_content()
     if cover_block is not None:
         builder.append("COVER_2", cover_block)
 
 
-def _pack_keywords(builder, notebook, offset=0):
+def _pack_keywords(
+    builder: NotebookBuilder, notebook: fileformat.Notebook, offset: int = 0
+) -> None:
     for keyword in notebook.get_keywords():
         page_number = keyword.get_page_number() + 1 + offset
         if page_number > 9999:
@@ -209,7 +223,7 @@ def _pack_keywords(builder, notebook, offset=0):
         if content is not None:
             builder.append(f"KEYWORD_{id}", content, allow_duplicate=True)
             keyword_metadata = keyword.metadata
-            keyword_metadata["KEYWORDPAGE"] = page_number
+            keyword_metadata["KEYWORDPAGE"] = str(page_number)
             address_list = builder.get_duplicate_block_address_list(f"KEYWORD_{id}")
             if len(address_list) == 1:
                 keyword_metadata["KEYWORDSITE"] = str(address_list[0])
@@ -223,7 +237,9 @@ def _pack_keywords(builder, notebook, offset=0):
             )
 
 
-def _pack_titles(builder, notebook, offset=0):
+def _pack_titles(
+    builder: NotebookBuilder, notebook: fileformat.Notebook, offset: int = 0
+) -> None:
     for title in notebook.get_titles():
         page_number = title.get_page_number() + 1 + offset
         if page_number > 9999:
@@ -248,7 +264,9 @@ def _pack_titles(builder, notebook, offset=0):
             )
 
 
-def _pack_links(builder, notebook, offset=0):
+def _pack_links(
+    builder: NotebookBuilder, notebook: fileformat.Notebook, offset: int = 0
+) -> None:
     for link in notebook.get_links():
         page_number = link.get_page_number() + 1 + offset
         if page_number > 9999:
@@ -271,18 +289,23 @@ def _pack_links(builder, notebook, offset=0):
             )
 
 
-def _pack_backgrounds(builder, notebook):
+def _pack_backgrounds(builder: NotebookBuilder, notebook: fileformat.Notebook) -> None:
     for i in range(notebook.get_total_pages()):
         page = notebook.get_page(i)
         style = page.get_style()
+        if style is None:
+            continue
         if style.startswith("user_"):
-            style += page.get_style_hash()
+            style_hash = page.get_style_hash()
+            style = style + (style_hash or "")
         content = _find_background_content_from_page(page)
         if content is not None:
             builder.append(f"STYLE_{style}", content)
 
 
-def _pack_pages(builder, notebook, offset=0):
+def _pack_pages(
+    builder: NotebookBuilder, notebook: fileformat.Notebook, offset: int = 0
+) -> None:
     for i in range(notebook.get_total_pages()):
         page_number = i + 1 + offset
         page = notebook.get_page(i)
@@ -295,8 +318,11 @@ def _pack_pages(builder, notebook, offset=0):
                 continue
             if layer_name == "BGLAYER":
                 style = page.get_style()
+                if style is None:
+                    continue
                 if style.startswith("user_"):
-                    style += page.get_style_hash()
+                    style_hash = page.get_style_hash()
+                    style = style + (style_hash or "")
                 layer_metadata = layer.metadata
                 layer_metadata["LAYERNAME"] = layer_name
                 layer_metadata["LAYERBITMAP"] = str(
@@ -329,16 +355,16 @@ def _pack_pages(builder, notebook, offset=0):
         del page_metadata["__layers__"]
         for prop in ["MAINLAYER", "LAYER1", "LAYER2", "LAYER3", "BGLAYER"]:
             address = builder.get_block_address(f"PAGE{page_number}/{prop}/metadata")
-            page_metadata[prop] = address
-        page_metadata["TOTALPATH"] = builder.get_block_address(
-            f"PAGE{page_number}/TOTALPATH"
+            page_metadata[prop] = str(address)
+        page_metadata["TOTALPATH"] = str(
+            builder.get_block_address(f"PAGE{page_number}/TOTALPATH")
         )
         page_metadata_block = _construct_metadata_block(page_metadata)
         builder.append(f"PAGE{page_number}/metadata", page_metadata_block)
 
 
-def _pack_footer(builder):
-    metadata_footer = {}
+def _pack_footer(builder: NotebookBuilder) -> None:
+    metadata_footer: dict[str, str | int | list[int]] = {}
     metadata_footer.setdefault("FILE_FEATURE", builder.get_block_address("__header__"))
     for label in builder.get_labels():
         if re.match(r"PAGE\d+/metadata", label):
@@ -382,23 +408,30 @@ def _pack_footer(builder):
     builder.append("__footer__", footer_block)
 
 
-def _pack_tail(builder):
+def _pack_tail(builder: NotebookBuilder) -> None:
     builder.append("__tail__", b"tail", skip_block_size=True)
 
 
-def _pack_footer_address(builder):
+def _pack_footer_address(builder: NotebookBuilder) -> None:
     footer_address = builder.get_block_address("__footer__")
     builder.append(
         "__footer_address__", footer_address.to_bytes(4, "little"), skip_block_size=True
     )
 
 
-def _verify_header_property(prop_name, metadata1, metadata2):
-    if metadata1.header.get(prop_name) != metadata2.header.get(prop_name):
+def _verify_header_property(
+    prop_name: str,
+    metadata1: fileformat.SupernoteMetadata,
+    metadata2: fileformat.SupernoteMetadata,
+) -> None:
+    header1 = metadata1.header
+    header2 = metadata2.header
+    assert header1 is not None and header2 is not None
+    if header1.get(prop_name) != header2.get(prop_name):
         raise ValueError(f"<{prop_name}> property must be same between merging files")
 
 
-def _construct_metadata_block(info):
+def _construct_metadata_block(info: dict[str, Any]) -> bytes:
     block_data = ""
     for k, v in info.items():
         if type(v) is list:
@@ -409,7 +442,9 @@ def _construct_metadata_block(info):
     return block_data.encode("utf-8")
 
 
-def _find_background_content_from_page(page):
+def _find_background_content_from_page(
+    page: fileformat.Page,
+) -> bytes | None:
     page = utils.WorkaroundPageWrapper.from_page(page)
     if not page.is_layer_supported():
         return None

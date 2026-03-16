@@ -14,9 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+import argparse
 import io
 import os
 import sys
+from collections.abc import Callable
+from typing import Any
 
 from colour import Color
 
@@ -38,7 +43,13 @@ from supernote.notebook.converter import (
 )
 
 
-def convert_all(converter, total, file_name, save_func, visibility_overlay):
+def convert_all(
+    converter: Any,
+    total: int,
+    file_name: str,
+    save_func: Callable[[Any, str], None],
+    visibility_overlay: dict[str, VisibilityOverlay],
+) -> None:
     basename, extension = os.path.splitext(file_name)
     max_digits = len(str(total))
     for i in range(total):
@@ -48,8 +59,14 @@ def convert_all(converter, total, file_name, save_func, visibility_overlay):
         save_func(img, numbered_filename)
 
 
-def convert_and_concat_all(converter, total, file_name, save_func, separator):
-    data = []
+def convert_and_concat_all(
+    converter: Any,
+    total: int,
+    file_name: str,
+    save_func: Callable[[str, str], None],
+    separator: str | None,
+) -> None:
+    data: list[Any] = []
     for i in range(total):
         data.append(converter.convert(i))
     data = list(map(lambda x: "" if x is None else (x + "\n"), data))
@@ -60,7 +77,9 @@ def convert_and_concat_all(converter, total, file_name, save_func, separator):
         print("no data")
 
 
-def convert_to_png(args, notebook, palette):
+def convert_to_png(
+    args: argparse.Namespace, notebook: Any, palette: ColorPalette | None
+) -> None:
     converter = ImageConverter(notebook, palette=palette)
     bg_visibility = (
         VisibilityOverlay.INVISIBLE
@@ -69,7 +88,7 @@ def convert_to_png(args, notebook, palette):
     )
     vo = build_visibility_overlay(background=bg_visibility)
 
-    def save(img, file_name):
+    def save(img: Any, file_name: str) -> None:
         img.save(file_name, format="PNG")
 
     if args.all:
@@ -80,7 +99,9 @@ def convert_to_png(args, notebook, palette):
         save(img, args.output)
 
 
-def convert_to_svg(args, notebook, palette):
+def convert_to_svg(
+    args: argparse.Namespace, notebook: Any, palette: ColorPalette | None
+) -> None:
     converter = SvgConverter(notebook, palette=palette)
     bg_visibility = (
         VisibilityOverlay.INVISIBLE
@@ -89,7 +110,7 @@ def convert_to_svg(args, notebook, palette):
     )
     vo = build_visibility_overlay(background=bg_visibility)
 
-    def save(svg, file_name):
+    def save(svg: Any, file_name: str) -> None:
         if svg is not None:
             with open(file_name, "w") as f:
                 f.write(svg)
@@ -104,12 +125,14 @@ def convert_to_svg(args, notebook, palette):
         save(svg, args.output)
 
 
-def convert_to_pdf(args, notebook, palette):
+def convert_to_pdf(
+    args: argparse.Namespace, notebook: Any, palette: ColorPalette | None
+) -> None:
     use_link = not args.no_link
     use_keyword = args.add_keyword
     converter = PdfConverter(notebook, palette=palette)
 
-    def save(data, file_name):
+    def save(data: Any, file_name: str) -> None:
         if data is not None:
             with open(file_name, "wb") as f:
                 f.write(data)
@@ -128,10 +151,12 @@ def convert_to_pdf(args, notebook, palette):
         save(data, args.output)
 
 
-def convert_to_txt(args, notebook, palette):
+def convert_to_txt(
+    args: argparse.Namespace, notebook: Any, palette: ColorPalette | None
+) -> None:
     converter = TextConverter(notebook, palette=palette)
 
-    def save(data, file_name):
+    def save(data: Any, file_name: str) -> None:
         if data is not None:
             with open(file_name, "w") as f:
                 f.write(data)
@@ -148,9 +173,9 @@ def convert_to_txt(args, notebook, palette):
         save(data, args.output)
 
 
-def subcommand_convert(args):
+def subcommand_convert(args: argparse.Namespace) -> None:
     notebook = load_notebook(args.input, policy=args.policy)
-    palette = None
+    palette: ColorPalette | None = None
     if args.color:
         try:
             colors = parse_color(args.color)
@@ -168,14 +193,14 @@ def subcommand_convert(args):
         convert_to_txt(args, notebook, palette)
 
 
-def subcommand_analyze(args):
+def subcommand_analyze(args: argparse.Namespace) -> None:
     # show all metadata as JSON
     with open(args.input, "rb") as f:
-        metadata = parse_metadata(f, policy=args.policy)
+        metadata = parse_metadata(f, policy=args.policy)  # type: ignore[arg-type]  # upstream FileObj protocol requires seek() -> None but stdlib io types return int; functionally compatible
     print(metadata.to_json(indent=2))
 
 
-def subcommand_merge(args):
+def subcommand_merge(args: argparse.Namespace) -> None:
     num_input = len(args.input)
     if num_input == 1:  # reconstruct a note file
         notebook = load_notebook(args.input[0])
@@ -187,21 +212,21 @@ def subcommand_merge(args):
             merged_binary = f.read()
         for i in range(1, num_input):
             stream = io.BytesIO(merged_binary)
-            merged_notebook = load(stream)
+            merged_notebook = load(stream)  # type: ignore[arg-type]  # upstream FileObj protocol requires seek() -> None but stdlib io types return int; functionally compatible
             next_notebook = load_notebook(args.input[i])
             merged_binary = merge(merged_notebook, next_notebook)
         with open(args.output, "wb") as f:
             f.write(merged_binary)
 
 
-def subcommand_reconstruct(args):
+def subcommand_reconstruct(args: argparse.Namespace) -> None:
     notebook = load_notebook(args.input)
     reconstructed_binary = reconstruct(notebook)
     with open(args.output, "wb") as f:
         f.write(reconstructed_binary)
 
 
-def parse_color(color_string):
+def parse_color(color_string: str) -> tuple[int, int, int, int]:
     colorcodes = color_string.split(",")
     if len(colorcodes) != 4:
         raise ValueError(f"few color codes, 4 colors are required: {color_string}")
@@ -212,7 +237,7 @@ def parse_color(color_string):
     return (black, darkgray, gray, white)
 
 
-def add_parser(subparsers):
+def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     # 'analyze' subcommand
     parser_analyze = subparsers.add_parser("analyze", help="analyze note file")
     parser_analyze.add_argument("input", type=str, help="input note file")

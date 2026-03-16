@@ -21,6 +21,7 @@ The Footer Block then contains references (offsets) to all other metadata blocks
 """
 
 import json
+from typing import Any
 
 ParamsBlock = dict[str, str | list[str]]
 
@@ -50,7 +51,7 @@ class SupernoteMetadata:
     """Represents Supernote file structure."""
 
     def __init__(self) -> None:
-        self.__note = {
+        self.__note: dict[str, Any] = {
             KEY_TYPE: None,
             KEY_SIGNATURE: None,
             KEY_HEADER: None,
@@ -60,42 +61,42 @@ class SupernoteMetadata:
 
     @property
     def type(self) -> str | None:
-        return self.__note[KEY_TYPE]
+        return self.__note[KEY_TYPE]  # type: ignore[no-any-return]  # internal Any dict; KEY_TYPE is always str|None
 
     @type.setter
-    def type(self, value: str | None):
+    def type(self, value: str | None) -> None:
         self.__note[KEY_TYPE] = value
 
     @property
     def signature(self) -> str | None:
-        return self.__note[KEY_SIGNATURE]
+        return self.__note[KEY_SIGNATURE]  # type: ignore[no-any-return]  # internal Any dict; KEY_SIGNATURE is always str|None
 
     @signature.setter
-    def signature(self, value: str | None):
+    def signature(self, value: str | None) -> None:
         self.__note[KEY_SIGNATURE] = value
 
     @property
-    def header(self) -> dict[str, str] | None:
-        return self.__note[KEY_HEADER]
+    def header(self) -> ParamsBlock | None:
+        return self.__note[KEY_HEADER]  # type: ignore[no-any-return]  # internal Any dict; KEY_HEADER is always ParamsBlock|None
 
     @header.setter
-    def header(self, value: dict[str, str] | None):
+    def header(self, value: ParamsBlock | None) -> None:
         self.__note[KEY_HEADER] = value
 
     @property
-    def footer(self) -> dict[str, str] | None:
-        return self.__note[KEY_FOOTER]
+    def footer(self) -> ParamsBlock | None:
+        return self.__note[KEY_FOOTER]  # type: ignore[no-any-return]  # internal Any dict; KEY_FOOTER is always ParamsBlock|None
 
     @footer.setter
-    def footer(self, value: dict[str, str] | None):
+    def footer(self, value: ParamsBlock | None) -> None:
         self.__note[KEY_FOOTER] = value
 
     @property
     def pages(self) -> list[ParamsBlock] | None:
-        return self.__note[KEY_PAGES]
+        return self.__note[KEY_PAGES]  # type: ignore[no-any-return]  # internal Any dict; KEY_PAGES is always list|None
 
     @pages.setter
-    def pages(self, value: list[ParamsBlock] | None):
+    def pages(self, value: list[ParamsBlock] | None) -> None:
         self.__note[KEY_PAGES] = value
 
     def get_total_pages(self) -> int:
@@ -106,7 +107,10 @@ class SupernoteMetadata:
         int
             total page number
         """
-        return len(self.__note[KEY_PAGES])
+        pages = self.__note[KEY_PAGES]
+        if pages is None:
+            return 0
+        return len(pages)
 
     def is_layer_supported(self, page_number: int) -> bool:
         """Returns true if the page supports layer.
@@ -123,9 +127,11 @@ class SupernoteMetadata:
         """
         if page_number < 0 or page_number >= self.get_total_pages():
             raise IndexError(f"page number out of range: {page_number}")
-        return self.__note[KEY_PAGES][page_number].get(KEY_LAYERS) is not None
+        pages = self.__note[KEY_PAGES]
+        assert pages is not None  # guarded by get_total_pages() check above
+        return pages[page_number].get(KEY_LAYERS) is not None
 
-    def to_json(self, indent: int = None) -> str:
+    def to_json(self, indent: int | None = None) -> str:
         """Returns file structure as JSON format string.
 
         Parameters
@@ -146,31 +152,43 @@ class Notebook:
         self.metadata = metadata
         self.page_width = PAGE_WIDTH
         self.page_height = PAGE_HEIGHT
-        if self.metadata.header.get("APPLY_EQUIPMENT") == "N5":
+        header = metadata.header
+        assert header is not None, (
+            "metadata.header must be set before constructing Notebook"
+        )
+        if header.get("APPLY_EQUIPMENT") == "N5":
             self.page_width = A5X2_PAGE_WIDTH
             self.page_height = A5X2_PAGE_HEIGHT
         self.type = metadata.type
         self.signature = metadata.signature
         self.cover = Cover()
+        footer = metadata.footer
+        assert footer is not None, (
+            "metadata.footer must be set before constructing Notebook"
+        )
         self.keywords: list[Keyword] = []
-        has_keywords = metadata.footer.get(KEY_KEYWORDS) is not None
-        if has_keywords:
-            for k in metadata.footer.get(KEY_KEYWORDS):
-                self.keywords.append(Keyword(k))
+        raw_keywords = footer.get(KEY_KEYWORDS)
+        if raw_keywords is not None:
+            for k in raw_keywords:
+                self.keywords.append(Keyword(k))  # type: ignore[arg-type]  # forked binary format; keyword items are dict[str, str]
         self.titles: list[Title] = []
-        has_titles = metadata.footer.get(KEY_TITLES) is not None
-        if has_titles:
-            for t in metadata.footer.get(KEY_TITLES):
-                self.titles.append(Title(t))
+        raw_titles = footer.get(KEY_TITLES)
+        if raw_titles is not None:
+            for t in raw_titles:
+                self.titles.append(Title(t))  # type: ignore[arg-type]  # forked binary format; title items are dict[str, str]
         self.links: list[Link] = []
-        has_links = metadata.footer.get(KEY_LINKS) is not None
-        if has_links:
-            for link in metadata.footer.get(KEY_LINKS):
-                self.links.append(Link(link))
+        raw_links = footer.get(KEY_LINKS)
+        if raw_links is not None:
+            for link in raw_links:
+                self.links.append(Link(link))  # type: ignore[arg-type]  # forked binary format; link items are dict[str, str]
         self.pages: list[Page] = []
         total = metadata.get_total_pages()
+        pages = metadata.pages
+        assert pages is not None, (
+            "metadata.pages must be set before constructing Notebook"
+        )
         for i in range(total):
-            self.pages.append(Page(metadata.pages[i]))
+            self.pages.append(Page(pages[i]))
 
     def get_metadata(self) -> SupernoteMetadata:
         return self.metadata
@@ -204,24 +222,30 @@ class Notebook:
     def get_titles(self) -> list["Title"]:
         return self.titles
 
-    def get_links(self):
+    def get_links(self) -> list["Link"]:
         return self.links
 
-    def get_fileid(self):
-        return self.metadata.header.get("FILE_ID")
+    def get_fileid(self) -> str | None:
+        header = self.metadata.header
+        assert header is not None
+        return header.get("FILE_ID")  # type: ignore[return-value]  # forked binary format; FILE_ID is always str when present
 
-    def is_realtime_recognition(self):
-        return self.metadata.header.get("FILE_RECOGN_TYPE") == "1"
+    def is_realtime_recognition(self) -> bool:
+        header = self.metadata.header
+        assert header is not None
+        return header.get("FILE_RECOGN_TYPE") == "1"
 
-    def supports_highres_grayscale(self):
-        return int(self.signature[-8:]) >= 20230015
+    def supports_highres_grayscale(self) -> bool:
+        signature = self.signature
+        assert signature is not None
+        return int(signature[-8:]) >= 20230015
 
 
 class Cover:
     def __init__(self) -> None:
         self.content: bytes | None = None
 
-    def set_content(self, content: bytes | None):
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
     def get_content(self) -> bytes | None:
@@ -234,7 +258,7 @@ class Keyword:
         self.content: bytes | None = None
         self.page_number = int(self.metadata["KEYWORDPAGE"]) - 1
 
-    def set_content(self, content: bytes | None):
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
     def get_content(self) -> bytes | None:
@@ -263,7 +287,7 @@ class Title:
         self.content: bytes | None = None
         self.page_number = 0
 
-    def set_content(self, content: bytes | None):
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
     def get_content(self) -> bytes | None:
@@ -295,7 +319,7 @@ class Link:
         self.content: bytes | None = None
         self.page_number = 0
 
-    def set_content(self, content: bytes | None):
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
     def get_content(self) -> bytes | None:
@@ -351,16 +375,16 @@ class Page:
     def __init__(self, page_info: ParamsBlock) -> None:
         self.metadata = page_info
         self.content: bytes | None = None
-        self.totalpath = None
-        self.recogn_file = None
-        self.recogn_text = None
+        self.totalpath: bytes | None = None
+        self.recogn_file: bytes | None = None
+        self.recogn_text: bytes | None = None
         self.layers: list[Layer] = []
-        layer_supported = page_info.get(KEY_LAYERS) is not None
-        if layer_supported:
+        raw_layers = page_info.get(KEY_LAYERS)
+        if raw_layers is not None:
             for i in range(5):
-                self.layers.append(Layer(self.metadata[KEY_LAYERS][i]))
+                self.layers.append(Layer(raw_layers[i]))  # type: ignore[arg-type]  # forked binary format; KEY_LAYERS stores list of layer ParamsBlocks
 
-    def set_content(self, content: bytes) -> None:
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
     def get_content(self) -> bytes | None:
@@ -376,88 +400,87 @@ class Page:
         """
         return self.metadata.get(KEY_LAYERS) is not None
 
-    def get_layers(self):
+    def get_layers(self) -> "list[Layer]":
         return self.layers
 
-    def get_layer(self, number):
+    def get_layer(self, number: int) -> "Layer":
         if number < 0 or number >= len(self.layers):
             raise IndexError(f"layer number out of range: {number}")
         return self.layers[number]
 
-    def get_protocol(self):
+    def get_protocol(self) -> str | None:
         if self.is_layer_supported():
             # currently MAINLAYER is only supported
             protocol = self.get_layer(0).metadata.get("LAYERPROTOCOL")
         else:
             protocol = self.metadata.get("PROTOCOL")
-        return protocol
+        return protocol  # type: ignore[return-value]  # forked binary format; metadata values are str|list[str]
 
-    def get_style(self):
-        return self.metadata.get("PAGESTYLE")
+    def get_style(self) -> str | None:
+        return self.metadata.get("PAGESTYLE")  # type: ignore[return-value]  # forked binary format; metadata values are str|list[str]
 
-    def get_style_hash(self):
+    def get_style_hash(self) -> str | None:
         hashcode = self.metadata.get("PAGESTYLEMD5")
         if hashcode == "0":
             return ""
-        return hashcode
+        return hashcode  # type: ignore[return-value]  # forked binary format; metadata values are str|list[str]
 
-    def get_layer_info(self):
+    def get_layer_info(self) -> str | None:
         info = self.metadata.get("LAYERINFO")
         if info is None or info == "none":
             return None
-        return info.replace("#", ":")
+        return info.replace("#", ":")  # type: ignore[union-attr]  # forked binary format; LAYERINFO is always str when present
 
-    def get_layer_order(self):
+    def get_layer_order(self) -> list[str]:
         seq = self.metadata.get("LAYERSEQ")
         if seq is None:
             return []
-        order = seq.split(",")
-        return order
+        return seq.split(",")  # type: ignore[union-attr]  # forked binary format; LAYERSEQ is always str when present
 
-    def set_totalpath(self, totalpath):
+    def set_totalpath(self, totalpath: bytes | None) -> None:
         self.totalpath = totalpath
 
-    def get_totalpath(self):
+    def get_totalpath(self) -> bytes | None:
         return self.totalpath
 
-    def get_pageid(self):
-        return self.metadata.get("PAGEID")
+    def get_pageid(self) -> str | None:
+        return self.metadata.get("PAGEID")  # type: ignore[return-value]  # forked binary format; PAGEID is always str when present
 
-    def get_recogn_status(self):
-        return int(self.metadata.get("RECOGNSTATUS"))
+    def get_recogn_status(self) -> int:
+        return int(self.metadata.get("RECOGNSTATUS"))  # type: ignore[arg-type]  # forked binary format; RECOGNSTATUS is always str
 
-    def set_recogn_file(self, recogn_file):
+    def set_recogn_file(self, recogn_file: bytes | None) -> None:
         self.recogn_file = recogn_file
 
-    def get_recogn_file(self):
+    def get_recogn_file(self) -> bytes | None:
         return self.recogn_file
 
-    def set_recogn_text(self, recogn_text):
+    def set_recogn_text(self, recogn_text: bytes | None) -> None:
         self.recogn_text = recogn_text
 
-    def get_recogn_text(self):
+    def get_recogn_text(self) -> bytes | None:
         return self.recogn_text
 
-    def get_orientation(self):
-        return self.metadata.get("ORIENTATION", self.ORIENTATION_VERTICAL)
+    def get_orientation(self) -> str:
+        return self.metadata.get("ORIENTATION", self.ORIENTATION_VERTICAL)  # type: ignore[return-value]  # forked binary format; ORIENTATION is always str
 
 
 class Layer:
-    def __init__(self, layer_info):
+    def __init__(self, layer_info: ParamsBlock) -> None:
         self.metadata = layer_info
-        self.content = None
+        self.content: bytes | None = None
 
-    def set_content(self, content):
+    def set_content(self, content: bytes | None) -> None:
         self.content = content
 
-    def get_content(self):
+    def get_content(self) -> bytes | None:
         return self.content
 
-    def get_name(self):
-        return self.metadata.get("LAYERNAME")
+    def get_name(self) -> str | None:
+        return self.metadata.get("LAYERNAME")  # type: ignore[return-value]  # forked binary format; LAYERNAME is always str when present
 
-    def get_protocol(self):
-        return self.metadata.get("LAYERPROTOCOL")
+    def get_protocol(self) -> str | None:
+        return self.metadata.get("LAYERPROTOCOL")  # type: ignore[return-value]  # forked binary format; LAYERPROTOCOL is always str when present
 
-    def get_type(self):
-        return self.metadata.get("LAYERTYPE")
+    def get_type(self) -> str | None:
+        return self.metadata.get("LAYERTYPE")  # type: ignore[return-value]  # forked binary format; LAYERTYPE is always str when present

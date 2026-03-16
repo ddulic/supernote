@@ -48,6 +48,7 @@ from supernote.server.services.file import (
     FolderDetail,
     RecycleEntity,
 )
+from supernote.server.services.user import UserService
 
 logger = logging.getLogger(__name__)
 routes = web.RouteTableDef()
@@ -544,6 +545,24 @@ async def handle_file_upload_apply(request: web.Request) -> web.Response:
 
     req_data = FileUploadApplyDTO.from_dict(await request.json())
     url_signer = request.app["url_signer"]
+    user_email = request["user"]
+
+    # T023: Quota check before generating upload URL
+    _user_service: UserService = request.app["user_service"]
+    _user_do = await _user_service.get_user_by_email(user_email)
+    if _user_do is not None:
+        _requested_size = req_data.size
+        _used = _user_do.used_capacity
+        _total = int(_user_do.total_capacity)
+        if _used + _requested_size > _total:
+            return web.json_response(
+                {
+                    "errorCode": "E0507",
+                    "errorMsg": "Storage quota exceeded",
+                    "success": False,
+                },
+                status=507,
+            )
 
     try:
         # Generate inner_name

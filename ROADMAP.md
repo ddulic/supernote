@@ -26,9 +26,9 @@ This document outlines the path to making Supernote Private Cloud a reliable "da
 
 - [x] **Hard Per-User Isolation**:
     - Enforce strict storage separation per user to prevent cross-contamination.
-- [ ] **Temp File Cleanup (TTL)**:
+- [x] **Temp File Cleanup (TTL)**:
     - Implement background task to clean up stale uploads/chunks in `storage/temp`.
-- [ ] **Capacity & Quota Enforcement**:
+- [x] **Capacity & Quota Enforcement**:
     - Implement actual storage quota checks based on user limits.
     - Implement proper quota allocation values and understand `AllocationVO`.
 - [x] **Finalize Legacy Cleanup**:
@@ -80,7 +80,7 @@ This document outlines the path to making Supernote Private Cloud a reliable "da
     - Upload flow with various chunk sizes.
     - Fix invalid assertions (path_display).
     - Expand general coverage (currently 300+ tests).
-- [ ] **Static Analysis**:
+- [x] **Static Analysis**:
     - Fix Mypy errors for `supernote/notebook/` and `supernote/cli/`.
 - [x] **Error Handling**:
     - Define `ErrorCode` as an enum and use the `error_code` field uniformly.
@@ -89,9 +89,9 @@ This document outlines the path to making Supernote Private Cloud a reliable "da
     - Reorganize tests to match module structure.
 
 ### Refactoring
-- [ ] **VFS Semantics**:
+- [x] **VFS Semantics**:
     - Clarify generic `soft_delete` and recursive copy logic.
-- [ ] **Code Cleanup**:
+- [x] **Code Cleanup**:
     - Remove dead code in `CoordinationService`.
 - [ ] **Multi-host Client Authentication**:
     - Update `FileCacheAuth` and `Client` to support multiple hosts simultaneously.

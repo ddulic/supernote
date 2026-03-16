@@ -1,5 +1,8 @@
 """Admin CLI commands."""
 
+from __future__ import annotations
+
+import argparse
 import asyncio
 import getpass
 import hashlib
@@ -13,7 +16,7 @@ from .client import create_session
 
 async def add_user_async(
     url: str, email: str, password: str, display_name: str | None = None
-):
+) -> None:
     """Async implementation of add user."""
     async with create_session(url) as session:
         print(f"Attempting to register user '{email}' on {url}...")
@@ -51,12 +54,12 @@ async def add_user_async(
             sys.exit(1)
 
 
-async def list_users_async():
+async def list_users_async() -> None:
     """Async implementation of list users."""
     async with create_session() as session:
         client = session.client
         try:
-            users = await client.get_json("/api/admin/users", list)
+            users = await client.get_json("/api/admin/users", list)  # type: ignore[type-var]  # list is not a valid DataClassJSONMixin; code is dead (try/pass block)
 
             print(f"\nTotal Users: {len(users)}\n")
             print(f"{'Username':<30} {'Email':<30} {'Capacity':<10}")
@@ -88,7 +91,7 @@ async def list_users_async():
             print(f"Failed to list users: {e}")
 
 
-def add_user(args):
+def add_user(args: argparse.Namespace) -> None:
     password = args.password
     if not password:
         password = getpass.getpass(f"Password for {args.email}: ")
@@ -97,11 +100,11 @@ def add_user(args):
     asyncio.run(add_user_async(args.url, args.email, password, display_name))
 
 
-def list_users(args):
+def list_users(args: argparse.Namespace) -> None:
     asyncio.run(list_users_async())
 
 
-async def reset_password_async(url: str, email: str, password: str):
+async def reset_password_async(url: str, email: str, password: str) -> None:
     """Async implementation of password reset."""
     async with create_session(url) as session:
         print(f"Attempting to reset password for '{email}' on {url}...")
@@ -117,7 +120,7 @@ async def reset_password_async(url: str, email: str, password: str):
             sys.exit(1)
 
 
-def reset_password(args):
+def reset_password(args: argparse.Namespace) -> None:
     password = args.password
     if not password:
         password = getpass.getpass(f"New password for {args.email}: ")
@@ -129,7 +132,7 @@ def reset_password(args):
     asyncio.run(reset_password_async(args.url, args.email, password))
 
 
-def add_parser(subparsers):
+def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     # 'admin' parent command
     parser_admin = subparsers.add_parser(
         "admin",

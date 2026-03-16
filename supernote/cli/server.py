@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -52,7 +54,7 @@ def serve_run(args: argparse.Namespace) -> None:
         server_app.run(args)
 
 
-def add_parser(subparsers):
+def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     # Common parent parser
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument(

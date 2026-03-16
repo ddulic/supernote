@@ -1,6 +1,5 @@
 import abc
 import logging
-from typing import Optional
 
 from supernote.models.base import ProcessingStatus
 from supernote.server.db.session import DatabaseSessionManager
@@ -34,7 +33,7 @@ class ProcessorModule(abc.ABC):
         pass
 
     def get_task_key(
-        self, page_index: Optional[int] = None, page_id: Optional[str] = None
+        self, page_index: int | None = None, page_id: str | None = None
     ) -> str:
         """Generate a unique task key for the given file and page.
         Returns 'page_{id}' if page_id exists.
@@ -49,8 +48,8 @@ class ProcessorModule(abc.ABC):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
     ) -> bool:
         """Pre-flight check to determine if the module should execute.
 
@@ -74,8 +73,8 @@ class ProcessorModule(abc.ABC):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
         **kwargs: object,
     ) -> None:
         """Execute the core module logic (CPU/IO intensive work).
@@ -98,8 +97,8 @@ class ProcessorModule(abc.ABC):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
         **kwargs: object,
     ) -> bool:
         """The entry point for executing a module.

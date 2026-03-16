@@ -4,7 +4,6 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import jwt
 from mashumaro.mixins.json import DataClassJSONMixin
@@ -23,7 +22,7 @@ from supernote.server.utils.hashing import hash_with_salt
 from ..config import AuthConfig
 from ..db.models.device import DeviceDO
 from ..db.models.login_record import LoginRecordDO
-from ..db.models.user import UserDO
+from ..db.models.user import DEFAULT_QUOTA, UserDO
 from ..db.session import DatabaseSessionManager
 from .coordination import CoordinationService
 from .vfs import VirtualFileSystem
@@ -44,7 +43,7 @@ MD5_REGEX = r"^[a-f0-9]{32}$"
 class SessionState(DataClassJSONMixin):
     token: str
     email: str
-    equipment_no: Optional[str] = None
+    equipment_no: str | None = None
     created_at: float = field(default_factory=time.time)
     last_active_at: float = field(default_factory=time.time)
 
@@ -62,11 +61,13 @@ class UserService:
         config: AuthConfig,
         coordination_service: CoordinationService,
         session_manager: DatabaseSessionManager,
+        default_quota_bytes: int = DEFAULT_QUOTA,
     ) -> None:
         """Initialize the user service."""
         self._config = config
         self._coordination_service = coordination_service
         self._session_manager = session_manager
+        self._default_quota_bytes = default_quota_bytes
 
     async def list_users(self) -> list[UserDO]:
         async with self._session_manager.session() as session:
@@ -98,6 +99,7 @@ class UserService:
             display_name=dto.user_name,
             is_active=True,
             is_admin=is_admin,
+            total_capacity=str(self._default_quota_bytes),
         )
         session.add(new_user)
         # Flush to get ID, but let caller commit
@@ -237,10 +239,10 @@ class UserService:
         account: str,
         password_hash: str,
         timestamp: str,
-        equipment_no: Optional[str] = None,
+        equipment_no: str | None = None,
         equipment: Equipment = Equipment.WEB,
-        ip: Optional[str] = None,
-        login_method: Optional[str] = None,
+        ip: str | None = None,
+        login_method: str | None = None,
     ) -> LoginVO | None:
         user = await self._get_user_do(account)
         if not user or not user.is_active:
@@ -419,6 +421,26 @@ class UserService:
                 raise ValueError(f"User {email} not found")
 
             user.password_md5 = password_md5
+            await session.commit()
+
+    async def increment_used_capacity(self, account: str, file_size: int) -> None:
+        """Atomically increment used_capacity by file_size for the given user."""
+        async with self._session_manager.session() as session:
+            await session.execute(
+                update(UserDO)
+                .where(UserDO.email == account)
+                .values(used_capacity=UserDO.used_capacity + file_size)
+            )
+            await session.commit()
+
+    async def decrement_used_capacity(self, account: str, file_size: int) -> None:
+        """Atomically decrement used_capacity by file_size, flooring at 0."""
+        async with self._session_manager.session() as session:
+            await session.execute(
+                update(UserDO)
+                .where(UserDO.email == account)
+                .values(used_capacity=func.max(0, UserDO.used_capacity - file_size))
+            )
             await session.commit()
 
     async def retrieve_password(self, account: str, password_md5: str) -> bool:

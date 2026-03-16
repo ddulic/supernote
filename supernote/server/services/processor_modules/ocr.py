@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from supernote.server.constants import CACHE_BUCKET
 from supernote.server.db.models.file import UserFileDO
@@ -70,8 +69,8 @@ class OcrModule(ProcessorModule):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
     ) -> bool:
         if page_index is None:
             return False
@@ -100,8 +99,8 @@ class OcrModule(ProcessorModule):
         self,
         file_id: int,
         session_manager: DatabaseSessionManager,
-        page_index: Optional[int] = None,
-        page_id: Optional[str] = None,
+        page_index: int | None = None,
+        page_id: str | None = None,
         **kwargs: object,
     ) -> None:
         if page_id is None:
@@ -117,8 +116,8 @@ class OcrModule(ProcessorModule):
         if not self.ai_service.is_configured:
             raise ValueError("AI service not configured")
 
-        file_name: Optional[str] = None
-        notebook_create_time: Optional[int] = None
+        file_name: str | None = None
+        notebook_create_time: int | None = None
         async with session_manager.session() as session:
             file_do = await session.get(UserFileDO, file_id)
             if file_do:

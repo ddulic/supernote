@@ -1,11 +1,15 @@
 """Client CLI commands."""
 
+from __future__ import annotations
+
+import argparse
 import asyncio
 import getpass
 import logging
 import os
 import sys
 import traceback
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -37,7 +41,7 @@ def load_cached_auth(url: str | None = None) -> tuple[FileCacheAuth, str]:
 
 
 @asynccontextmanager
-async def create_session(url: str | None = None) -> Supernote:
+async def create_session(url: str | None = None) -> AsyncGenerator[Supernote, None]:
     """Initialize Supernote session with cached credentials."""
     auth, url = load_cached_auth(url)
     async with Supernote.from_auth(auth, host=url) as sn:
@@ -111,6 +115,9 @@ async def async_cloud_login(
             cache_path = os.path.expanduser("~/.cache/supernote.pkl")
             print(f"Saving credentials to {cache_path}...")
             auth = FileCacheAuth(cache_path)
+            if access_token is None:
+                print("Error: No access token returned from login.")
+                sys.exit(1)
             auth.save_credentials(access_token, url)
             print("✓ Credentials saved!")
             print()
@@ -208,7 +215,7 @@ async def _run_login_sanity_tests(sn: Supernote) -> None:
     print("=" * 80)
 
 
-def subcommand_cloud_login(args) -> None:
+def subcommand_cloud_login(args: argparse.Namespace) -> None:
     """Handler for cloud-login subcommand."""
     password = args.password
     if not password:
@@ -247,7 +254,7 @@ async def async_cloud_ls(path: str, verbose: bool = False) -> None:
         sys.exit(1)
 
 
-def subcommand_cloud_ls(args) -> None:
+def subcommand_cloud_ls(args: argparse.Namespace) -> None:
     """Handler for cloud-ls subcommand."""
     asyncio.run(async_cloud_ls(args.path, args.verbose))
 
@@ -275,7 +282,7 @@ async def async_cloud_upload(
         sys.exit(1)
 
 
-def subcommand_cloud_upload(args) -> None:
+def subcommand_cloud_upload(args: argparse.Namespace) -> None:
     """Handler for cloud-upload subcommand."""
     # If remote_path is not provided, use the same filename in the root directory
     remote_path = args.remote_path
@@ -307,7 +314,7 @@ async def async_cloud_download(
         sys.exit(1)
 
 
-def subcommand_cloud_download(args) -> None:
+def subcommand_cloud_download(args: argparse.Namespace) -> None:
     """Handler for cloud-download subcommand."""
     local_path = args.local_path
     if not local_path:
@@ -332,7 +339,7 @@ async def async_cloud_mkdir(path: str, verbose: bool = False) -> None:
         sys.exit(1)
 
 
-def subcommand_cloud_mkdir(args) -> None:
+def subcommand_cloud_mkdir(args: argparse.Namespace) -> None:
     """Handler for cloud-mkdir subcommand."""
     asyncio.run(async_cloud_mkdir(args.path, args.verbose))
 
@@ -416,12 +423,12 @@ async def async_cloud_insights(path: str, verbose: bool = False) -> None:
         sys.exit(1)
 
 
-def subcommand_cloud_rm(args) -> None:
+def subcommand_cloud_rm(args: argparse.Namespace) -> None:
     """Handler for cloud-rm subcommand."""
     asyncio.run(async_cloud_rm(args.path, args.verbose))
 
 
-def subcommand_cloud_insights(args) -> None:
+def subcommand_cloud_insights(args: argparse.Namespace) -> None:
     """Handler for cloud-insights subcommand."""
     asyncio.run(async_cloud_insights(args.path, args.verbose))
 
@@ -474,7 +481,7 @@ async def async_cloud_search(
         sys.exit(1)
 
 
-def subcommand_cloud_search(args) -> None:
+def subcommand_cloud_search(args: argparse.Namespace) -> None:
     """Handler for cloud-search subcommand."""
     asyncio.run(
         async_cloud_search(
@@ -488,7 +495,7 @@ def subcommand_cloud_search(args) -> None:
     )
 
 
-def add_parser(subparsers):
+def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the cloud subparser to the main subparsers."""
     cloud_parser = subparsers.add_parser("cloud", help="Interact with Supernote Cloud")
     cloud_subparsers = cloud_parser.add_subparsers(
