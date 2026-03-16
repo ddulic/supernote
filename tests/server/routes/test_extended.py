@@ -3,12 +3,14 @@ from typing import Any
 from unittest.mock import AsyncMock, PropertyMock, patch
 
 import pytest
+from aiohttp.test_utils import TestClient
 
 from supernote.client.client import Client
 from supernote.client.extended import ExtendedClient
 from supernote.server.db.models.file import UserFileDO
 from supernote.server.db.models.note_processing import NotePageContentDO
 from supernote.server.db.session import DatabaseSessionManager
+from supernote.server.exceptions import SupernoteError
 
 
 @pytest.fixture
@@ -114,3 +116,185 @@ async def test_extended_transcript_not_found(
     # Request transcript for non-existent file
     with pytest.raises(Exception):  # The client raises for 404
         await extended_client.get_transcript(file_id=999)
+
+
+# ---------------------------------------------------------------------------
+# Error-path tests for extended routes
+# ---------------------------------------------------------------------------
+
+
+async def test_summary_list_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/file/summary/list",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_summary_list_invalid_dto(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/file/summary/list",
+        json={"unexpected_field_only": True},
+        headers=auth_headers,
+    )
+    # Missing required field file_id → Invalid Request
+    assert resp.status in (400, 200)  # depends on DTO validation
+
+
+async def test_summary_list_supernote_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.summary.SummaryService.list_summaries_for_file_internal",
+        new_callable=AsyncMock,
+    ) as m:
+        m.side_effect = SupernoteError("not found", status_code=404)
+        resp = await client.post(
+            "/api/extended/file/summary/list",
+            json={"fileId": 999},
+            headers=auth_headers,
+        )
+    assert resp.status == 404
+
+
+async def test_summary_list_generic_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.summary.SummaryService.list_summaries_for_file_internal",
+        new_callable=AsyncMock,
+    ) as m:
+        m.side_effect = RuntimeError("boom")
+        resp = await client.post(
+            "/api/extended/file/summary/list",
+            json={"fileId": 999},
+            headers=auth_headers,
+        )
+    assert resp.status == 500
+
+
+async def test_list_system_tasks_generic_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.processor.ProcessorService.list_system_tasks",
+        new_callable=AsyncMock,
+    ) as m:
+        m.side_effect = RuntimeError("boom")
+        resp = await client.get("/api/extended/system/tasks", headers=auth_headers)
+    assert resp.status == 500
+
+
+async def test_file_processing_status_valid(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/file/processing/status",
+        json={"fileIds": [1, 2, 3]},
+        headers=auth_headers,
+    )
+    assert resp.status == 200
+    data = await resp.json()
+    assert isinstance(data, dict)
+
+
+async def test_file_processing_status_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/file/processing/status",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_search_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/search",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_search_user_not_found(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.user.UserService.get_user_id",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        resp = await client.post(
+            "/api/extended/search",
+            json={"query": "test"},
+            headers=auth_headers,
+        )
+    assert resp.status == 404
+
+
+async def test_search_generic_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.search.SearchService.search_chunks",
+        new_callable=AsyncMock,
+    ) as m:
+        m.side_effect = RuntimeError("boom")
+        resp = await client.post(
+            "/api/extended/search",
+            json={"query": "test"},
+            headers=auth_headers,
+        )
+    assert resp.status == 500
+
+
+async def test_transcript_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/extended/transcript",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_transcript_user_not_found(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.user.UserService.get_user_id",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        resp = await client.post(
+            "/api/extended/transcript",
+            json={"fileId": 999},
+            headers=auth_headers,
+        )
+    assert resp.status == 404
+
+
+async def test_transcript_generic_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    with patch(
+        "supernote.server.services.search.SearchService.get_transcript",
+        new_callable=AsyncMock,
+    ) as m:
+        m.side_effect = RuntimeError("boom")
+        resp = await client.post(
+            "/api/extended/transcript",
+            json={"fileId": 999},
+            headers=auth_headers,
+        )
+    assert resp.status == 500

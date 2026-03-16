@@ -144,3 +144,94 @@ async def test_update_task_fields(authenticated_client: Client) -> None:
 
     # Cleanup
     await schedule.delete_group(group_id)
+
+
+# ---------------------------------------------------------------------------
+# Error-path tests for schedule routes
+# ---------------------------------------------------------------------------
+
+
+async def test_create_group_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/file/schedule/group",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_create_group_missing_title(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/file/schedule/group",
+        json={"title": ""},
+        headers=auth_headers,
+    )
+    assert resp.status == 400
+
+
+async def test_delete_group_not_found(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.delete("/api/file/schedule/group/99999", headers=auth_headers)
+    assert resp.status == 404
+
+
+async def test_create_task_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/file/schedule/task",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_create_task_missing_fields(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/api/file/schedule/task",
+        json={"taskListId": ""},
+        headers=auth_headers,
+    )
+    assert resp.status == 400
+
+
+async def test_update_task_invalid_json(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.put(
+        "/api/file/schedule/task",
+        data=b"not json",
+        headers={**auth_headers, "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_update_task_not_found(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.put(
+        "/api/file/schedule/task",
+        json={
+            "taskId": "99999",
+            "title": "x",
+            "lastModified": 0,
+            "isReminderOn": "Y",
+            "taskListId": "1",
+        },
+        headers=auth_headers,
+    )
+    assert resp.status == 404
+
+
+async def test_delete_task_not_found(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.delete("/api/file/schedule/task/99999", headers=auth_headers)
+    assert resp.status == 404
