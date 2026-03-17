@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/ddulic/supernote/compare/v1.1.0...v1.2.0) (2026-03-17)
+
+
+### Features
+
+* add PNG caching and insights panel OCR tab ([b41e0c8](https://github.com/ddulic/supernote/commit/b41e0c885eb6aee8f40673d99d54565f6df29495))
+* add PNG caching and insights panel OCR tab ([ba3f2ef](https://github.com/ddulic/supernote/commit/ba3f2ef52016f5c61249300f1f8423ff924fdc15))
+
+
+### Documentation
+
+* update spec with implementation clarifications; add 100% coverage rule to constitution ([dd061cc](https://github.com/ddulic/supernote/commit/dd061cc0757027d555262a0f528d11e289082575))
+
 ## [1.1.0](https://github.com/ddulic/supernote/compare/v1.0.1...v1.1.0) (2026-03-17)
 
 
