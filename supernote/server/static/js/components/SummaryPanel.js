@@ -99,35 +99,35 @@ export default {
     <div class="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 w-full md:w-96">
         <!-- Header -->
         <div class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-            <div class="p-4 flex items-center justify-between">
-                <h3 class="font-semibold text-black dark:text-white flex items-center gap-2">
+            <div class="px-4 flex items-center justify-between">
+                <h3 class="font-semibold text-black dark:text-white flex items-center gap-2 shrink-0">
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     AI Insights
                 </h3>
-                <button @click="$emit('close')" class="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                <!-- Tabs inline with header -->
+                <div class="flex gap-1 mx-2">
+                    <button
+                        @click="selectTab('ai')"
+                        :class="[
+                            'px-3 py-3 text-sm font-medium transition-colors border-b-2',
+                            activeTab === 'ai'
+                                ? 'border-black dark:border-white text-black dark:text-white'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'
+                        ]"
+                    >AI</button>
+                    <button
+                        @click="selectTab('ocr')"
+                        :class="[
+                            'px-3 py-3 text-sm font-medium transition-colors border-b-2',
+                            activeTab === 'ocr'
+                                ? 'border-black dark:border-white text-black dark:text-white'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'
+                        ]"
+                    >OCR</button>
+                </div>
+                <button @click="$emit('close')" class="text-gray-400 hover:text-black dark:hover:text-white transition-colors shrink-0">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
-            </div>
-            <!-- Tab bar -->
-            <div class="flex px-4 gap-1 pb-0">
-                <button
-                    @click="selectTab('ai')"
-                    :class="[
-                        'px-3 py-2 text-sm font-medium transition-colors border-b-2',
-                        activeTab === 'ai'
-                            ? 'border-black dark:border-white text-black dark:text-white'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'
-                    ]"
-                >AI</button>
-                <button
-                    @click="selectTab('ocr')"
-                    :class="[
-                        'px-3 py-2 text-sm font-medium transition-colors border-b-2',
-                        activeTab === 'ocr'
-                            ? 'border-black dark:border-white text-black dark:text-white'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'
-                    ]"
-                >OCR</button>
             </div>
         </div>
 
