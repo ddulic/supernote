@@ -5,6 +5,11 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -25,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
 
       # Set up Buildx runner for multi-platform builds
       - name: Set up Docker Buildx
@@ -50,9 +57,9 @@ jobs:
             latest=true
             prefix=v
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{version}},value=${{ inputs.tag_name || github.ref_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag_name || github.ref_name }}
+            type=semver,pattern={{major}},value=${{ inputs.tag_name || github.ref_name }}
 
       # Build and push Docker image with Buildx
       # https://github.com/docker/build-push-action
