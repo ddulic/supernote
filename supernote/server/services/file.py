@@ -976,7 +976,9 @@ class FileService:
                     )
                     any_new_pages = True
 
-                results.append(ConversionsVO(storage_key=png_storage_key, page_no=i))
+                results.append(
+                    ConversionsVO(storage_key=png_storage_key, page_no=i + 1)
+                )
 
             # Persist the MD5 used for this conversion so future calls can clean up stale images.
             if any_new_pages or node.last_conversion_md5 != current_md5:
