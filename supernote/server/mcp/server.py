@@ -99,6 +99,9 @@ async def _get_auth_user_id(ctx: Context) -> int | None:
     return await user_service.get_user_id(token.user_id)
 
 
+MAX_TOP_N = 20
+
+
 async def search_notebook_chunks(
     ctx: Context,
     query: str,
@@ -112,11 +115,12 @@ async def search_notebook_chunks(
 
     Args:
         query: The semantic search query.
-        top_n: Number of results to return (default: 5).
+        top_n: Number of results to return (default: 5, max: 20).
         name_filter: Optional substring filter for notebook filenames.
         date_after: Filter for notes created after this date (ISO 8601).
         date_before: Filter for notes created before this date (ISO 8601).
     """
+    top_n = min(top_n, MAX_TOP_N)
     search_service: SearchService = _services["search_service"]
     if not search_service:
         return create_error_response(

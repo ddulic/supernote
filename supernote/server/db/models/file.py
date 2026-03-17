@@ -38,6 +38,9 @@ class UserFileDO(Base):
     md5: Mapped[str | None] = mapped_column(String, nullable=True)
     """Content hash."""
 
+    last_conversion_md5: Mapped[str | None] = mapped_column(String, nullable=True)
+    """MD5 of the file at last PNG conversion; used for stale image cleanup."""
+
     storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
     """Physical storage key (inner_name/UUID)."""
 
