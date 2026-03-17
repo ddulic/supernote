@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/ddulic/supernote/compare/v1.2.0...v1.3.0) (2026-03-17)
+
+
+### Features
+
+* improve file explorer page numbering and insights UI ([1dccbb7](https://github.com/ddulic/supernote/commit/1dccbb715297cda97aa68f4d527c49098702f03f))
+* improve file explorer page numbering and insights UI (v1.3.0) ([842704e](https://github.com/ddulic/supernote/commit/842704e7c683746355fe68c639ea175b405f8f3c))
+
 ## [1.2.0](https://github.com/ddulic/supernote/compare/v1.1.0...v1.2.0) (2026-03-17)
 
 
