@@ -200,3 +200,48 @@ class WebTranscriptResponseVO(BaseResponse):
 
     class Config(BaseConfig):
         serialize_by_alias = True
+
+
+@dataclass
+class OcrPageVO(DataClassJSONMixin):
+    """VO for a single page's OCR text.
+
+    Used by: POST /api/extended/file/ocr/list
+    """
+
+    page_index: int = field(metadata=field_options(alias="pageIndex"))
+    """0-based page position in the note."""
+
+    text_content: str = field(metadata=field_options(alias="textContent"))
+    """Raw OCR text extracted from this page."""
+
+    class Config(BaseConfig):
+        serialize_by_alias = True
+
+
+@dataclass
+class WebOcrListRequestDTO(DataClassJSONMixin):
+    """Request DTO for listing OCR page text by file ID (Web Extension).
+
+    Used by: POST /api/extended/file/ocr/list
+    """
+
+    file_id: int = field(metadata=field_options(alias="fileId"))
+    """The ID of the file to retrieve OCR text for."""
+
+    class Config(BaseConfig):
+        serialize_by_alias = True
+
+
+@dataclass
+class WebOcrListVO(DataClassJSONMixin):
+    """Response VO for OCR page text list (Web Extension).
+
+    Used by: POST /api/extended/file/ocr/list
+    """
+
+    pages: list[OcrPageVO] = field(default_factory=list)
+    """Pages with OCR text, ordered by page_index ascending. Empty if none available."""
+
+    class Config(BaseConfig):
+        serialize_by_alias = True

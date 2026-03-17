@@ -13,9 +13,12 @@ from supernote.models.base import ProcessingStatus
 from supernote.models.extended import (
     FileProcessingStatusDTO,
     FileProcessingStatusVO,
+    OcrPageVO,
     SearchResultVO,
     SystemTaskListVO,
     SystemTaskVO,
+    WebOcrListRequestDTO,
+    WebOcrListVO,
     WebSearchRequestDTO,
     WebSearchResponseVO,
     WebSummaryListRequestDTO,
@@ -23,7 +26,8 @@ from supernote.models.extended import (
     WebTranscriptRequestDTO,
     WebTranscriptResponseVO,
 )
-from supernote.server.db.models.note_processing import SystemTaskDO
+from supernote.server.db.models.file import UserFileDO
+from supernote.server.db.models.note_processing import NotePageContentDO, SystemTaskDO
 from supernote.server.exceptions import SupernoteError
 from supernote.server.services.search import SearchService
 from supernote.server.services.summary import SummaryService
@@ -230,4 +234,62 @@ async def handle_extended_transcript(request: web.Request) -> web.Response:
         )
     except Exception as err:
         logger.exception("Error fetching notebook transcript")
+        return SupernoteError.uncaught(err).to_response()
+
+
+@routes.post("/api/extended/file/ocr/list")
+async def handle_extended_file_ocr_list(request: web.Request) -> web.Response:
+    # Endpoint: POST /api/extended/file/ocr/list
+    # Purpose: Extended API to retrieve per-page OCR text for a note file.
+    user_email = request["user"]
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    try:
+        req_dto = WebOcrListRequestDTO.from_dict(data)
+    except Exception as e:
+        return web.json_response({"error": f"Invalid Request: {e}"}, status=400)
+
+    user_service: UserService = request.app["user_service"]
+    session_manager = request.app["session_manager"]
+
+    try:
+        user_id = await user_service.get_user_id(user_email)
+        if not user_id:
+            return web.json_response({"error": "User not found"}, status=404)
+
+        async with session_manager.session() as session:
+            # Verify the file exists and enforce ownership.
+            file_result = await session.execute(
+                select(UserFileDO).where(UserFileDO.id == req_dto.file_id)
+            )
+            file_node = file_result.scalar_one_or_none()
+            if file_node is None:
+                return web.json_response(
+                    {"error": f"File {req_dto.file_id} not found"}, status=404
+                )
+            if file_node.user_id != user_id:
+                return web.json_response({"error": "Forbidden"}, status=403)
+
+            # Retrieve pages with OCR text, ordered by page_index.
+            ocr_result = await session.execute(
+                select(NotePageContentDO)
+                .where(
+                    NotePageContentDO.file_id == req_dto.file_id,
+                    NotePageContentDO.text_content.is_not(None),
+                )
+                .order_by(NotePageContentDO.page_index)
+            )
+            pages = ocr_result.scalars().all()
+
+        page_vos = [
+            OcrPageVO(page_index=p.page_index, text_content=p.text_content or "")
+            for p in pages
+        ]
+        return web.json_response(WebOcrListVO(pages=page_vos).to_dict())
+
+    except Exception as err:
+        logger.exception("Error fetching OCR page list")
         return SupernoteError.uncaught(err).to_response()

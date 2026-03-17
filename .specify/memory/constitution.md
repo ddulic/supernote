@@ -105,6 +105,9 @@ merged without a corresponding test that was authored before the implementation.
   mocking the database is prohibited.
 - Completeness tests (e.g., `test_*_completeness.py`) MUST be maintained
   alongside every model module to ensure all fields are round-trip serializable.
+- **100% line coverage is required on all new and changed code before committing.**
+  Every branch, error path, and early return MUST have a corresponding test.
+  Code MUST NOT be committed until coverage is verified locally.
 
 **Rationale**: The existing test suite (80+ test files spanning routes, services,
 device protocol, MCP, security, and models) demonstrates that comprehensive tests
@@ -224,7 +227,9 @@ All standard operations MUST use the scripts in `script/` following the
 development and integration testing. It starts with a clean state and a
 pre-seeded debug user and MUST NOT persist data between runs.
 
-Pull requests MUST pass all CI gates (lint, type check, tests) before merge.
+Pull requests MUST pass all CI gates (lint, type check, tests, coverage) before merge.
+New and changed code MUST achieve 100% line coverage; PRs that reduce patch
+coverage below 100% MUST NOT be merged without explicit justification.
 The `main` branch is the source of truth; GitHub Pages documentation is
 auto-deployed on every push to `main` via `pdoc`.
 

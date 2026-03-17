@@ -927,27 +927,61 @@ class FileService:
             )
             note = load_notebook(BytesIO(blob_content))  # type: ignore[arg-type]
 
-            # Convert each page to PNG
+            current_md5 = node.md5 or "nomd5"
+            total_pages = note.get_total_pages()
+
+            # Delete stale cached images from the previous content version.
+            old_md5 = node.last_conversion_md5
+            if old_md5 and old_md5 != current_md5:
+                for i in range(total_pages):
+                    old_key = get_conversion_png_path(
+                        user_id=user_id,
+                        file_id=file_id,
+                        page_index=i,
+                        file_md5=old_md5,
+                    )
+                    await self.blob_storage.delete(USER_DATA_BUCKET, old_key)
+
+            # Convert each page to PNG, skipping pages that are already cached.
             converter = ImageConverter(note)
             results = []
-            for i in range(note.get_total_pages()):
-                img = converter.convert(i)
-                img_io = BytesIO()
-                img.save(img_io, format="PNG")
-                img_bytes = img_io.getvalue()
-
-                # Store PNG in blob storage with a unique key
-                # Format: conversions/{user_id}/{file_id}/page_{i}_{md5}.png
+            any_new_pages = False
+            for i in range(total_pages):
                 png_storage_key = get_conversion_png_path(
                     user_id=user_id,
                     file_id=file_id,
                     page_index=i,
-                    file_md5=node.md5 or "nomd5",
+                    file_md5=current_md5,
                 )
-                await self.blob_storage.put(
-                    USER_DATA_BUCKET, png_storage_key, img_bytes
-                )
+
+                # Check cache — fail-open on storage errors.
+                already_cached = False
+                try:
+                    already_cached = await self.blob_storage.exists(
+                        USER_DATA_BUCKET, png_storage_key
+                    )
+                except Exception:
+                    logger.warning(
+                        "blob_storage.exists failed for key %s; treating as cache miss",
+                        png_storage_key,
+                    )
+
+                if not already_cached:
+                    img = converter.convert(i)
+                    img_io = BytesIO()
+                    img.save(img_io, format="PNG")
+                    img_bytes = img_io.getvalue()
+                    await self.blob_storage.put(
+                        USER_DATA_BUCKET, png_storage_key, img_bytes
+                    )
+                    any_new_pages = True
+
                 results.append(ConversionsVO(storage_key=png_storage_key, page_no=i))
+
+            # Persist the MD5 used for this conversion so future calls can clean up stale images.
+            if any_new_pages or node.last_conversion_md5 != current_md5:
+                node.last_conversion_md5 = current_md5
+                await session.commit()
 
             return results
 

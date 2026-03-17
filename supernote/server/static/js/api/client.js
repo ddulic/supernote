@@ -198,6 +198,36 @@ export async function fetchSummaries(fileId) {
 }
 
 /**
+ * Fetch per-page OCR text for a note file (Extended API).
+ * @param {*} fileId - The file ID (number or string).
+ * @returns {Promise<Array>} Array of { pageIndex, textContent } objects ordered by pageIndex.
+ */
+export async function fetchOcrPages(fileId) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/extended/file/ocr/list', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-access-token': currentToken
+        },
+        body: JSON.stringify({ fileId: fileId })
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            logout();
+            throw new Error("Unauthorized");
+        }
+        throw new Error(`OCR fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.pages || [];
+}
+
+/**
  * Fetch system tasks (Extended API).
  * @returns {Promise<Object>} The system task list response.
  */

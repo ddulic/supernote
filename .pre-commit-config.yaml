@@ -25,6 +25,12 @@ repos:
         language: script
         types: [python]
         require_serial: true
+      - id: pytest-staged
+        name: pytest (staged files)
+        entry: script/pre-commit-test
+        language: script
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
