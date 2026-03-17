@@ -129,6 +129,26 @@ async def test_ocr_list_forbidden_for_other_users_file(
 
 
 # ---------------------------------------------------------------------------
+# 404: user not found
+# ---------------------------------------------------------------------------
+
+
+async def test_ocr_list_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    with patch(
+        "supernote.server.services.user.UserService.get_user_id",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        resp = await client.post(
+            OCR_ENDPOINT, json={"fileId": FILE_ID}, headers=auth_headers
+        )
+    assert resp.status == 404
+
+
+# ---------------------------------------------------------------------------
 # 404: file not found
 # ---------------------------------------------------------------------------
 
