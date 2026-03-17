@@ -4,10 +4,13 @@ These tests verify that the server correctly handles X-Forwarded-* headers
 when deployed behind a reverse proxy, with different proxy modes.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from aiohttp.test_utils import TestClient
 
 from supernote.models.file_device import FileUploadApplyLocalDTO
+from supernote.server.app import bootstrap_ephemeral_user
 
 
 # Test for default proxy mode (disabled)
@@ -166,3 +169,32 @@ async def test_static_non_js_no_cache_header_absent(client: TestClient) -> None:
     resp = await client.get("/static/favicon.ico")
     assert resp.status == 200
     assert resp.headers.get("Cache-Control") != "no-store"
+
+
+async def test_bootstrap_ephemeral_user_creates_user_when_not_exists() -> None:
+    """bootstrap_ephemeral_user creates debug@example.com when the user does not exist."""
+    user_service = MagicMock()
+    user_service.check_user_exists = AsyncMock(return_value=False)
+    user_service.create_user = AsyncMock()
+
+    app: dict[str, object] = {"user_service": user_service}
+    await bootstrap_ephemeral_user(app)  # type: ignore[arg-type]
+
+    user_service.check_user_exists.assert_awaited_once_with("debug@example.com")
+    user_service.create_user.assert_awaited_once()
+    call_dto = user_service.create_user.call_args.args[0]
+    assert call_dto.email == "debug@example.com"
+    assert call_dto.user_name == "Debug User"
+
+
+async def test_bootstrap_ephemeral_user_skips_when_user_exists() -> None:
+    """bootstrap_ephemeral_user does nothing when debug@example.com already exists."""
+    user_service = MagicMock()
+    user_service.check_user_exists = AsyncMock(return_value=True)
+    user_service.create_user = AsyncMock()
+
+    app: dict[str, object] = {"user_service": user_service}
+    await bootstrap_ephemeral_user(app)  # type: ignore[arg-type]
+
+    user_service.check_user_exists.assert_awaited_once_with("debug@example.com")
+    user_service.create_user.assert_not_awaited()
