@@ -86,6 +86,8 @@ A user opens a note and clicks the AI Insights panel. They see two tabs: "AI" (d
 - Q: When a note's content changes and new images are stored, should old-hash cached images be deleted immediately or left to accumulate until note deletion? → A: Delete old-hash page images for a note when new images are stored for a new content version.
 - Q: Should the new OCR endpoint return all pages in a single response or reuse the existing summary endpoint filtered by type? → A: New dedicated endpoint returning all pages for a file in one response, ordered by page index.
 - Q: If the storage existence check fails due to a storage error, should the system proceed with conversion or surface an error to the user? → A: Proceed with conversion (fail-open) — treat storage error as a cache miss and convert normally.
+- Q: When a note's content changes, does the cache allow per-page reuse (only re-convert changed pages)? → A: No. When the file MD5 changes, ALL pages are re-converted. The storage key embeds the MD5, so the entire key namespace changes and no previously cached pages can be reused. There is no page-level diffing.
+- Q: Where should the AI/OCR tab bar be placed in the Insights panel header? → A: Inline with the header row — the tabs sit between the "AI Insights" title and the close button on the same line, conserving vertical space.
 
 ## Assumptions
 
