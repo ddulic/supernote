@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/ddulic/supernote/compare/v1.3.0...v1.4.0) (2026-03-17)
+
+
+### Features
+
+* AI insights per-page sync and misc UI improvements ([4b15c7f](https://github.com/ddulic/supernote/commit/4b15c7f8d8c496cf998ab0d8933b8ed59f3492ee))
+
 ## [1.3.0](https://github.com/ddulic/supernote/compare/v1.2.0...v1.3.0) (2026-03-17)
 
 
