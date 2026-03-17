@@ -322,3 +322,75 @@ async def test_get_all_configs_with_defaults_default_content_always_present(
     configs = await service.get_all_configs_with_defaults(user_id=1)
     for c in configs:
         assert c.default_content, f"Missing default_content for {c.category}/{c.layer}"
+
+
+async def test_get_all_configs_with_defaults_custom_user_layer(
+    service: PromptConfigService,
+) -> None:
+    """User-saved layers not in the file loader appear as custom overrides."""
+    await service.upsert_config(
+        user_id=1, category="ocr", layer="my-project", content="Project-specific OCR"
+    )
+    configs = await service.get_all_configs_with_defaults(user_id=1)
+    custom = next(
+        (c for c in configs if c.category == "ocr" and c.layer == "my-project"), None
+    )
+    assert custom is not None
+    assert custom.is_override is True
+    assert custom.content == "Project-specific OCR"
+
+
+async def test_get_effective_prompt_raises_when_no_content(
+    service: PromptConfigService, prompt_loader: PromptLoader
+) -> None:
+    """get_effective_prompt raises ValueError when no prompt content is resolvable."""
+    from unittest.mock import patch
+
+    # Return an empty layer map so neither common nor specific has content
+    with patch.object(prompt_loader, "get_all_known_layers", return_value={}):
+        with pytest.raises(ValueError, match="No prompt content"):
+            await service.get_effective_prompt(
+                user_id=1, prompt_id=PromptId.OCR_TRANSCRIPTION, note_type=None
+            )
+
+
+async def test_make_prompt_resolver_returns_effective_prompt(
+    service: PromptConfigService,
+) -> None:
+    """make_prompt_resolver returns a callable that resolves the prompt."""
+    resolver = service.make_prompt_resolver(user_id=1, note_type=None)
+    result = await resolver(PromptId.OCR_TRANSCRIPTION)  # type: ignore[misc, call-arg]
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+async def test_make_prompt_resolver_custom_type_overrides_note_type(
+    service: PromptConfigService,
+) -> None:
+    """make_prompt_resolver resolver uses custom_type when provided."""
+    await service.upsert_config(
+        user_id=1, category="ocr", layer="weekly", content="Weekly OCR text"
+    )
+    resolver = service.make_prompt_resolver(user_id=1, note_type="monthly")
+    result = await resolver(PromptId.OCR_TRANSCRIPTION, "weekly")  # type: ignore[misc]
+    assert result == "Weekly OCR text"
+
+
+async def test_get_all_configs_skips_unknown_prompt_id(
+    service: PromptConfigService, prompt_loader: PromptLoader
+) -> None:
+    """get_all_configs_with_defaults skips entries whose prompt_id has no category."""
+    from unittest.mock import patch
+
+    # Inject an unknown prompt_id_value that has no mapping in _PROMPT_ID_TO_CATEGORY
+    original = prompt_loader.get_all_known_layers()
+    extended = {**original, "unknown-prompt-id": {"default": "some text"}}
+    with patch.object(prompt_loader, "get_all_known_layers", return_value=extended):
+        configs = await service.get_all_configs_with_defaults(user_id=1)
+    # The unknown entry should be silently skipped
+    layers_for_unknown = [
+        c
+        for c in configs
+        if c.layer == "default" and c.category not in ("ocr", "summary")
+    ]
+    assert layers_for_unknown == []

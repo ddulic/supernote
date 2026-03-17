@@ -1,5 +1,7 @@
 """Tests for prompt configuration routes."""
 
+from unittest.mock import AsyncMock, patch
+
 from aiohttp.test_utils import TestClient
 from sqlalchemy import select
 
@@ -383,3 +385,579 @@ async def test_reprocess_page_not_stale_returns_400(
     assert resp.status == 400
     data = await resp.json()
     assert data["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# User-not-found branches (line 59, 83, 123, 162, 239, 337, 411)
+# ---------------------------------------------------------------------------
+
+
+async def test_get_prompts_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """GET /api/extended/prompts returns 404 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.get("/api/extended/prompts", headers=auth_headers)
+    assert resp.status == 404
+
+
+async def test_put_prompt_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """PUT /api/extended/prompts returns 404 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.put(
+            "/api/extended/prompts",
+            headers=auth_headers,
+            json={"category": "ocr", "layer": "default", "content": "x"},
+        )
+    assert resp.status == 404
+
+
+async def test_delete_prompt_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """DELETE /api/extended/prompts returns 404 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.delete(
+            "/api/extended/prompts/ocr/default", headers=auth_headers
+        )
+    assert resp.status == 404
+
+
+async def test_staleness_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """GET /files/{file_id}/staleness returns 404 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.get("/api/extended/files/1/staleness", headers=auth_headers)
+    assert resp.status == 404
+
+
+async def test_reprocess_file_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /files/{file_id}/reprocess returns 404 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.post(
+            "/api/extended/files/1/reprocess", headers=auth_headers
+        )
+    assert resp.status == 404
+
+
+async def test_reprocess_page_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /files/{file_id}/pages/{page_id}/reprocess returns 404 when user is None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.post(
+            "/api/extended/files/1/pages/P001/reprocess", headers=auth_headers
+        )
+    assert resp.status == 404
+
+
+# ---------------------------------------------------------------------------
+# Invalid file_id (non-integer) branches
+# ---------------------------------------------------------------------------
+
+
+async def test_staleness_invalid_file_id(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """GET /files/abc/staleness returns 400 for non-integer file_id."""
+    resp = await client.get("/api/extended/files/abc/staleness", headers=auth_headers)
+    assert resp.status == 400
+    data = await resp.json()
+    assert data["success"] is False
+
+
+async def test_reprocess_file_invalid_file_id(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /files/abc/reprocess returns 400 for non-integer file_id."""
+    resp = await client.post("/api/extended/files/abc/reprocess", headers=auth_headers)
+    assert resp.status == 400
+    data = await resp.json()
+    assert data["success"] is False
+
+
+async def test_reprocess_page_invalid_file_id(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /files/abc/pages/P001/reprocess returns 400 for non-integer file_id."""
+    resp = await client.post(
+        "/api/extended/files/abc/pages/P001/reprocess", headers=auth_headers
+    )
+    assert resp.status == 400
+    data = await resp.json()
+    assert data["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# Exception-handler branches (uncaught exceptions → 500)
+# ---------------------------------------------------------------------------
+
+
+async def test_get_prompts_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """GET /api/extended/prompts returns 500 when service raises."""
+    with patch.object(
+        client.app["prompt_config_service"],
+        "get_all_configs_with_defaults",
+        new=AsyncMock(side_effect=RuntimeError("db exploded")),
+    ):
+        resp = await client.get("/api/extended/prompts", headers=auth_headers)
+    assert resp.status == 500
+
+
+async def test_put_prompt_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """PUT /api/extended/prompts returns 500 when service raises unexpectedly."""
+    with patch.object(
+        client.app["prompt_config_service"],
+        "upsert_config",
+        new=AsyncMock(side_effect=RuntimeError("db exploded")),
+    ):
+        resp = await client.put(
+            "/api/extended/prompts",
+            headers=auth_headers,
+            json={"category": "ocr", "layer": "default", "content": "x"},
+        )
+    assert resp.status == 500
+
+
+async def test_delete_prompt_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """DELETE /api/extended/prompts returns 500 when service raises unexpectedly."""
+    with patch.object(
+        client.app["prompt_config_service"],
+        "delete_config",
+        new=AsyncMock(side_effect=RuntimeError("db exploded")),
+    ):
+        resp = await client.delete(
+            "/api/extended/prompts/ocr/nonexistent-layer", headers=auth_headers
+        )
+    assert resp.status == 500
+
+
+async def test_staleness_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """GET staleness returns 500 when prompt_config_service raises."""
+    user_id = await _get_user_id(session_manager)
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=9001, user_id=user_id, file_name="f.note", is_folder="N"
+        )
+        session.add(file_do)
+        await session.commit()
+
+    with patch.object(
+        client.app["prompt_config_service"],
+        "compute_combined_prompt_hash",
+        new=AsyncMock(side_effect=RuntimeError("hash error")),
+    ):
+        resp = await client.get(
+            "/api/extended/files/9001/staleness", headers=auth_headers
+        )
+    assert resp.status == 500
+
+
+# ---------------------------------------------------------------------------
+# DELETE protected layer
+# ---------------------------------------------------------------------------
+
+
+async def test_delete_prompt_protected_layer_returns_400(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """DELETE returns 400 when attempting to delete a protected layer."""
+    resp = await client.delete(
+        "/api/extended/prompts/ocr/default", headers=auth_headers
+    )
+    assert resp.status == 400
+    data = await resp.json()
+    assert data["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# PUT invalid JSON body
+# ---------------------------------------------------------------------------
+
+
+async def test_put_prompt_invalid_json(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """PUT /api/extended/prompts returns 400 for malformed request body."""
+    resp = await client.put(
+        "/api/extended/prompts",
+        headers={**auth_headers, "Content-Type": "application/json"},
+        data=b"not-json",
+    )
+    assert resp.status == 400
+    data = await resp.json()
+    assert data["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# POST /files/{file_id}/reprocess — stale pages + page_ids body
+# ---------------------------------------------------------------------------
+
+
+async def test_reprocess_file_with_stale_pages(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Reprocess queues stale pages and returns queued_page_count > 0."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=10001, user_id=user_id, file_name="monthly.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=10001, page_index=0, page_id="P10001", prompt_hash="old-hash"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(return_value=1),
+    ):
+        resp = await client.post(
+            "/api/extended/files/10001/reprocess", headers=auth_headers
+        )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+    assert data["queuedPageCount"] == 1
+
+
+async def test_reprocess_file_with_page_ids_filter(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Reprocess with explicit page_ids filters to only stale pages in the list."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=10002, user_id=user_id, file_name="weekly.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=10002, page_index=0, page_id="P10002", prompt_hash="old-hash"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(return_value=1),
+    ):
+        resp = await client.post(
+            "/api/extended/files/10002/reprocess",
+            headers=auth_headers,
+            json={"pageIds": ["P10002"]},
+        )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+    assert data["queuedPageCount"] == 1
+
+
+async def test_reprocess_file_already_processing(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Reprocess returns 409 when file is already being processed."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=10003, user_id=user_id, file_name="daily.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=10003, page_index=0, page_id="P10003", prompt_hash="old-hash"
+        )
+        session.add(page)
+        await session.commit()
+
+    client.app["processor_service"].processing_files.add(10003)
+    try:
+        resp = await client.post(
+            "/api/extended/files/10003/reprocess", headers=auth_headers
+        )
+        assert resp.status == 409
+        data = await resp.json()
+        assert data["success"] is False
+    finally:
+        client.app["processor_service"].processing_files.discard(10003)
+
+
+# ---------------------------------------------------------------------------
+# POST /files/{file_id}/pages/{page_id}/reprocess — file not found + success
+# ---------------------------------------------------------------------------
+
+
+async def test_reprocess_page_file_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """Page reprocess returns 403 when file doesn't belong to user."""
+    resp = await client.post(
+        "/api/extended/files/99999/pages/P001/reprocess", headers=auth_headers
+    )
+    assert resp.status == 403
+
+
+async def test_reprocess_page_page_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Page reprocess returns 404 when the page_id doesn't exist in the file."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=11001, user_id=user_id, file_name="monthly.note", is_folder="N"
+        )
+        session.add(file_do)
+        await session.commit()
+
+    resp = await client.post(
+        "/api/extended/files/11001/pages/NONEXISTENT/reprocess", headers=auth_headers
+    )
+    assert resp.status == 404
+    data = await resp.json()
+    assert data["success"] is False
+
+
+async def test_reprocess_page_success(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Page reprocess succeeds for a stale page."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=11002, user_id=user_id, file_name="monthly.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=11002, page_index=0, page_id="P11002", prompt_hash="old-hash"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(return_value=1),
+    ):
+        resp = await client.post(
+            "/api/extended/files/11002/pages/P11002/reprocess", headers=auth_headers
+        )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+    assert data["queuedPageCount"] == 1
+
+
+# ---------------------------------------------------------------------------
+# POST /api/extended/reprocess-all
+# ---------------------------------------------------------------------------
+
+
+async def test_reprocess_all_requires_auth(client: TestClient) -> None:
+    """POST /api/extended/reprocess-all returns 401 without auth."""
+    resp = await client.post("/api/extended/reprocess-all")
+    assert resp.status == 401
+
+
+async def test_reprocess_all_user_not_found(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /api/extended/reprocess-all returns 401 when user lookup returns None."""
+    with patch.object(
+        client.app["user_service"], "get_user_id", new=AsyncMock(return_value=None)
+    ):
+        resp = await client.post("/api/extended/reprocess-all", headers=auth_headers)
+    assert resp.status == 401
+
+
+async def test_reprocess_all_success(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /api/extended/reprocess-all returns queued_page_count."""
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_all",
+        new=AsyncMock(return_value=5),
+    ):
+        resp = await client.post("/api/extended/reprocess-all", headers=auth_headers)
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+    assert data["queuedPageCount"] == 5
+
+
+async def test_reprocess_all_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /api/extended/reprocess-all returns 500 on unexpected exception."""
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_all",
+        new=AsyncMock(side_effect=RuntimeError("exploded")),
+    ):
+        resp = await client.post("/api/extended/reprocess-all", headers=auth_headers)
+    assert resp.status == 500
+
+
+async def test_reprocess_file_invalid_body_ignored(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """Reprocess with an invalid JSON body ignores it and uses all stale pages."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=12001, user_id=user_id, file_name="daily.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=12001, page_index=0, page_id="P12001", prompt_hash="stale"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(return_value=1),
+    ):
+        resp = await client.post(
+            "/api/extended/files/12001/reprocess",
+            headers={**auth_headers, "Content-Type": "application/json"},
+            data=b"not-valid-json",
+        )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["success"] is True
+
+
+async def test_reprocess_file_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """POST /files/{file_id}/reprocess returns 500 on unexpected exception."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=12002, user_id=user_id, file_name="daily.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=12002, page_index=0, page_id="P12002", prompt_hash="stale"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(side_effect=RuntimeError("exploded")),
+    ):
+        resp = await client.post(
+            "/api/extended/files/12002/reprocess", headers=auth_headers
+        )
+    assert resp.status == 500
+
+
+async def test_reprocess_page_service_exception(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    session_manager: DatabaseSessionManager,
+    create_test_user: None,
+) -> None:
+    """POST /files/{file_id}/pages/{page_id}/reprocess returns 500 on exception."""
+    user_id = await _get_user_id(session_manager)
+
+    async with session_manager.session() as session:
+        file_do = UserFileDO(
+            id=12003, user_id=user_id, file_name="monthly.note", is_folder="N"
+        )
+        session.add(file_do)
+        page = NotePageContentDO(
+            file_id=12003, page_index=0, page_id="P12003", prompt_hash="stale"
+        )
+        session.add(page)
+        await session.commit()
+
+    with patch.object(
+        client.app["processor_service"],
+        "reprocess_pages",
+        new=AsyncMock(side_effect=RuntimeError("exploded")),
+    ):
+        resp = await client.post(
+            "/api/extended/files/12003/pages/P12003/reprocess", headers=auth_headers
+        )
+    assert resp.status == 500
