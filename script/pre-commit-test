@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# script/pre-commit-test: Run tests for staged Python files before committing.
+# Invoked automatically by pre-commit before each commit.
+
+set -e
+cd "$(dirname "$0")/.."
+
+# Collect staged Python files
+staged_src=$(git diff --cached --name-only --diff-filter=ACM | grep '^supernote/.*\.py$' || true)
+staged_tests=$(git diff --cached --name-only --diff-filter=ACM | grep '^tests/.*\.py$' || true)
+
+# Nothing Python-related staged — skip
+if [ -z "$staged_src" ] && [ -z "$staged_tests" ]; then
+    exit 0
+fi
+
+# Map source files -> corresponding test files
+test_files=()
+
+for f in $staged_src; do
+    rel="${f#supernote/}"
+    dir=$(dirname "$rel")
+    base=$(basename "$rel" .py)
+    candidate="tests/${dir}/test_${base}.py"
+    if [ -f "$candidate" ]; then
+        test_files+=("$candidate")
+    fi
+done
+
+# Include any staged test files directly
+for f in $staged_tests; do
+    test_files+=("$f")
+done
+
+# Deduplicate test files
+IFS=$'\n' read -r -d '' -a test_files < <(printf '%s\n' "${test_files[@]}" | sort -u && printf '\0') || true
+
+if [ ${#test_files[@]} -eq 0 ]; then
+    exit 0
+fi
+
+echo "==> Running pre-commit tests for staged files..."
+
+if command -v uv >/dev/null 2>&1; then
+    runner="uv run pytest"
+else
+    runner="pytest"
+fi
+
+$runner "${test_files[@]}" -q
