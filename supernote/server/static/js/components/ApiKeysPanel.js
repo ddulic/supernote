@@ -14,7 +14,7 @@ export default {
                         <h2 class="text-xl font-bold text-gray-800 dark:text-white">MCP Credentials</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage API keys and session tokens for MCP client access.</p>
                     </div>
-                    <button @click="$emit('close')" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
+                    <button @click="$emit('close')" class="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -28,7 +28,7 @@ export default {
                         <p class="text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Key created — copy it now. It will not be shown again.</p>
                         <div class="flex items-center gap-2">
                             <code class="flex-1 bg-white dark:bg-gray-700 border border-green-300 dark:border-green-600 rounded px-3 py-2 text-sm font-mono text-green-900 dark:text-green-300 break-all select-all">{{ newKey }}</code>
-                            <button @click="copyKey" class="shrink-0 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded font-medium transition-colors">
+                            <button @click="copyKey" class="shrink-0 px-3 py-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 transition-colors">
                                 {{ copied ? 'Copied!' : 'Copy' }}
                             </button>
                         </div>
@@ -42,14 +42,14 @@ export default {
                                 v-model="newKeyName"
                                 type="text"
                                 placeholder="Key name (e.g. Claude Desktop)"
-                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
                                 @keyup.enter="handleCreate"
                                 :disabled="creating"
                             />
                             <button
                                 @click="handleCreate"
                                 :disabled="!newKeyName.trim() || creating"
-                                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm rounded font-medium transition-colors"
+                                class="px-4 py-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
                             >
                                 {{ creating ? 'Creating…' : 'Create' }}
                             </button>
@@ -61,7 +61,7 @@ export default {
                     <div>
                         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Existing Keys</h3>
                         <div v-if="loading" class="flex justify-center p-8">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
                         </div>
                         <div v-else-if="keys.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
                             No API keys yet.
@@ -92,7 +92,7 @@ export default {
                         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Connected Sessions</h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">OAuth clients connected via the browser login flow (e.g. claude.ai). Disconnecting revokes the refresh token — the client will need to re-authenticate.</p>
                         <div v-if="sessionsLoading" class="flex justify-center p-8">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
                         </div>
                         <div v-else-if="sessions.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
                             No active sessions.
@@ -121,7 +121,7 @@ export default {
 
                 <!-- Footer -->
                 <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-end">
-                    <button @click="$emit('close')" class="px-4 py-2 bg-indigo-600 border border-transparent rounded shadow-sm text-sm font-medium text-white hover:bg-indigo-700">
+                    <button @click="$emit('close')" class="px-4 py-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 transition-colors">
                         Close
                     </button>
                 </div>

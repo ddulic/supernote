@@ -34,6 +34,9 @@ class NotePageContentDO(Base):
     embedding: Mapped[str | None] = mapped_column(Text, nullable=True)
     """JSON string representation of the vector embedding."""
 
+    prompt_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    """SHA-256 hash of the prompts used during last processing. NULL means pre-feature."""
+
     create_time: Mapped[int] = mapped_column(
         BigInteger, default=lambda: int(time.time() * 1000)
     )

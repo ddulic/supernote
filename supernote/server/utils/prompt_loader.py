@@ -1,12 +1,37 @@
 import enum
-import importlib.resources
 import logging
-from importlib.resources.abc import Traversable
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-RESOURCES_DIR = importlib.resources.files("supernote.server") / "resources" / "prompts"
+DEFAULT_OCR_PROMPT = """You are analyzing PNG images of handwritten text from an \
+e-ink notebook SuperNote. The notes are written in English and are in a \
+bullet journal format. You can see that the text is not perfect and will need \
+some cleaning up
+
+Rapid logging is the language of the bullet journal method and it functions \
+through the use of Bullets to indicate a task's status. A task starts with a simple \
+dot "•" to represent a task. If a task is completed, mark it with an "X". If it's \
+migrated to a future date, use a right arrow (>) to indicate that. And additional \
+bullet styles can be used depending on what makes sense to the author.
+
+Tasks within the Bullet Journal method can then fall within any of the logs used \
+depending on where they fall in the author's timeline. Typically, journals contain \
+a Daily Log, Weekly Log, and Monthly Log."""
+
+DEFAULT_SUMMARY_COMMON_PROMPT = """You are an expert assistant helping to digitize \
+and summarize a handwritten Bullet Journal.
+You must extract a list of `SummarySegment` objects.
+Each segment should represent a logical unit of time or topic \
+(e.g. a single day, a week, a project).
+Extract any specific dates mentioned in the segment in ISO 8601 format (YYYY-MM-DD).
+Cite the page numbers (e.g. 1, 2) that contributed to each segment \
+based on the `--- Page X ---` markers.
+
+The input text is an OCR transcript of handwritten notes. It may contain errors or noise.
+Do your best to infer the correct meaningful content."""
+
+DEFAULT_SUMMARY_PROMPT = """Summarise the content of these notes, extracting \
+key topics, any tasks or action items, and important events or decisions."""
 
 
 class PromptId(str, enum.Enum):
@@ -21,109 +46,46 @@ CATEGORY_MAP = {
 COMMON = "common"
 DEFAULT = "default"
 
+# Layers that are always present and cannot be removed via the API
+PROTECTED_LAYERS: frozenset[tuple[str, str]] = frozenset(
+    {("ocr", DEFAULT), ("summary", DEFAULT), ("summary", COMMON)}
+)
+
 
 class PromptLoader:
-    """Service to load and manage externalized prompts."""
+    """Provides default prompts used when no user override is configured."""
 
-    def __init__(self, resources_dir: Path | Traversable | None = None) -> None:
-        self.resources_dir = resources_dir or RESOURCES_DIR
-        # Map: prompt_id -> (type -> prompt_text)
-        # type can be "common", "default", or specific custom types like "monthly"
-        self.prompts: dict[str, dict[str, str]] = {}
-        self._load_prompts()
+    def __init__(self) -> None:
+        self.prompts: dict[str, dict[str, str]] = {
+            PromptId.OCR_TRANSCRIPTION.value: {
+                DEFAULT: DEFAULT_OCR_PROMPT,
+            },
+            PromptId.SUMMARY_GENERATION.value: {
+                COMMON: DEFAULT_SUMMARY_COMMON_PROMPT,
+                DEFAULT: DEFAULT_SUMMARY_PROMPT,
+            },
+        }
 
-    def _load_prompts(self) -> None:
-        """Load all prompts from the resources directory into memory."""
-        if not self.resources_dir.is_dir():
-            logger.warning(f"Prompts directory not found at {self.resources_dir}")
-            return
-
-        # Initialize dicts for known prompt IDs
-        for pid in PromptId:
-            self.prompts[pid.value] = {}
-
-        try:
-            # Map categories to PromptId
-            for category, prompt_id in CATEGORY_MAP.items():
-                category_dir = self.resources_dir / category
-                if not category_dir.is_dir():
-                    continue
-
-                if prompt_id not in self.prompts:
-                    self.prompts[prompt_id] = {}
-
-                # 1. Load Common Prompts (Always On)
-                common_dir = category_dir / COMMON
-                if common_dir.is_dir():
-                    common_text = self._read_prompts_from_dir(common_dir)
-                    if common_text:
-                        self.prompts[prompt_id][COMMON] = common_text
-
-                # 2. Load Default Prompts
-                default_dir = category_dir / DEFAULT
-                if default_dir.is_dir():
-                    default_text = self._read_prompts_from_dir(default_dir)
-                    if default_text:
-                        self.prompts[prompt_id][DEFAULT] = default_text
-
-                # 3. Load Custom Prompts (sub-directories)
-                for item in category_dir.iterdir():
-                    if item.is_dir() and item.name not in [COMMON, DEFAULT]:
-                        custom_type = item.name.lower()
-                        custom_text = self._read_prompts_from_dir(item)
-                        if custom_text:
-                            self.prompts[prompt_id][custom_type] = custom_text
-
-            logger.info(f"Loaded prompts from {self.resources_dir}")
-
-        except Exception as e:
-            logger.error(f"Failed to load prompts from {self.resources_dir}: {e}")
-
-    def _read_prompts_from_dir(self, directory: Path | Traversable) -> str:
-        """Read and concatenate all .md files in a directory."""
-        prompts = []
-        # Use iterdir instead of glob for Traversable compatibility
-        files = sorted(
-            [f for f in directory.iterdir() if f.name.endswith(".md")],
-            key=lambda x: x.name,
-        )
-        for file_path in files:
-            if file_path.is_file():
-                prompts.append(file_path.read_text(encoding="utf-8").strip())
-        return "\n\n".join(prompts)
+    def get_all_known_layers(self) -> dict[str, dict[str, str]]:
+        """Return all default layers keyed by prompt_id value then layer name."""
+        return {pid: dict(layers) for pid, layers in self.prompts.items()}
 
     def get_prompt(self, prompt_id: PromptId, custom_type: str | None = None) -> str:
-        """Retrieve a prompt by its ID, optionally overridden by a custom type.
+        """Return the composed default prompt for the given prompt_id.
 
-        Logic: Common + (Custom if exists else Default)
+        Composes common (if present) + default. custom_type is accepted for API
+        compatibility but ignored — custom prompts are managed via
+        PromptConfigService (DB overrides), not the loader.
         """
-        if prompt_id not in self.prompts:
+        key = prompt_id.value if isinstance(prompt_id, PromptId) else str(prompt_id)
+        type_map = self.prompts.get(key)
+        if not type_map:
             raise ValueError(f"Prompt ID '{prompt_id}' not found.")
-
-        type_map = self.prompts[prompt_id]
-
         parts = []
-
-        # 1. Add Common
         if COMMON in type_map:
             parts.append(type_map[COMMON])
-
-        # 2. Add Specific (Custom or Default)
-        specific_prompt = None
-        if custom_type and custom_type in type_map:
-            logger.info(f"Using custom prompt '{custom_type}' for {prompt_id}")
-            specific_prompt = type_map[custom_type]
-        elif DEFAULT in type_map:
-            specific_prompt = type_map[DEFAULT]
-
-        if specific_prompt:
-            parts.append(specific_prompt)
-        elif not parts:
-            # If no common and no specific/default, that's an issue
-            raise ValueError(
-                f"No prompt content found for '{prompt_id}' (Custom: {custom_type})"
-            )
-
+        if DEFAULT in type_map:
+            parts.append(type_map[DEFAULT])
         return "\n\n".join(parts)
 
 

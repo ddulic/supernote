@@ -1,19 +1,14 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0
+Version change: 1.1.0 → 1.2.0
 Modified principles: none
 Added sections:
-  - VI. Test-Driven Development (new principle)
-  - VII. Security (new principle)
+  - VIII. Frontend UI Conventions (new principle)
 Removed sections: none
 Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ — Constitution Check now includes TDD gate and
-      Security gate; plan-template already references constitution check before Phase 0
-  - .specify/templates/spec-template.md ✅ — Success criteria MUST include security
-      acceptance scenarios and test coverage requirements
-  - .specify/templates/tasks-template.md ✅ — Task phases now reflect mandatory TDD
-      ordering (tests written & failing before implementation) and security hardening phase
+  - .specify/templates/plan-template.md — Constitution Check should include Frontend gate
+      when UI changes are in scope
 Deferred TODOs: none
 -->
 
@@ -155,6 +150,46 @@ security-focused tests (see `tests/server/routes/test_*_security*.py` and
 and AI-derived insights. A single authorization bypass or credential leak would
 expose highly sensitive personal data. Security must be designed in, not bolted on.
 
+### VIII. Frontend UI Conventions
+
+The frontend is Vanilla JS with Vue 3 (ESM browser build, no build step). All
+components live in `supernote/server/static/js/components/` and are served as
+static files. UI changes MUST follow the established visual language exactly
+so the interface remains consistent across features.
+
+**Button styles** (Tailwind CSS — MUST be used verbatim for each category):
+
+| Category | Required classes |
+|---|---|
+| Primary (save / confirm) | `px-4 py-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors` |
+| Secondary / cancel | `px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 disabled:opacity-50 transition-colors` |
+| Danger (delete / remove) | `px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors disabled:opacity-50` |
+| Icon-only (header / toolbar) | `text-gray-400 hover:text-black dark:hover:text-white transition-colors` |
+| Amber / warning | `p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 disabled:opacity-50 rounded transition-colors border border-amber-300 dark:border-amber-600` — reserved for status-driven indicators only (e.g. stale content), never for routine actions |
+
+**Prohibited**: Framework accent colors (indigo, blue, green, etc.) MUST NOT
+be used for interactive controls. The permitted palette for interactive elements
+is black / gray / red / amber only, as defined above.
+
+**Disabled state**: Always `disabled:opacity-50`; add `disabled:cursor-not-allowed`
+only when a full-width button is used (e.g. form submission).
+
+**Modal overlay pattern**: `fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[N] p-4` with `@click.self="$emit('close')"`. Modal close (×) buttons MUST use the icon-only style above.
+
+**Focus rings**: `focus:ring-2 focus:ring-black dark:focus:ring-white` — color-specific rings (indigo, blue, etc.) are prohibited.
+
+**Loading spinners**: `animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white` (full-size) or `animate-spin w-4 h-4` with an SVG spinner inline (compact, inside a button).
+
+**Dark mode**: Every interactive element MUST declare a `dark:` variant for all
+background, text, and border properties. An element without a dark mode class
+MUST NOT be merged.
+
+**Rationale**: A consistent visual language makes the application feel coherent
+and reduces cognitive overhead. Because there is no design system or component
+library, the Tailwind class strings above serve as the single source of truth.
+Deviating without updating this constitution creates drift that compounds
+across features.
+
 ## Technology Stack
 
 - **Runtime**: Python 3.13+, managed with `uv`
@@ -215,4 +250,4 @@ all seven Core Principles. Complexity that violates a principle MUST be
 explicitly justified in the PR description with reference to the specific
 principle and why the simpler alternative was rejected.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-15
+**Version**: 1.2.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-17

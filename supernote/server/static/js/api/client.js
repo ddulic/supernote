@@ -569,3 +569,147 @@ export async function fetchProcessingStatus(fileIds) {
         statusMap: data.statusMap
     };
 }
+
+/**
+ * Fetch all prompt configurations for the current user.
+ * @returns {Promise<{success: boolean, prompts: Array}>}
+ */
+export async function fetchPrompts() {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/extended/prompts', {
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to fetch prompts: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Save or update a prompt layer override.
+ * @param {string} category - 'ocr' or 'summary'
+ * @param {string} layer - layer name
+ * @param {string} content - prompt text
+ * @returns {Promise<{success: boolean}>}
+ */
+export async function savePrompt(category, layer, content) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/extended/prompts', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-access-token': currentToken
+        },
+        body: JSON.stringify({ category, layer, content })
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to save prompt: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Delete a prompt override, reverting to server default.
+ * @param {string} category
+ * @param {string} layer
+ * @returns {Promise<{success: boolean}>}
+ */
+export async function deletePrompt(category, layer) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch(`/api/extended/prompts/${category}/${layer}`, {
+        method: 'DELETE',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to delete prompt: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Fetch staleness data for a file.
+ * @param {number} fileId
+ * @returns {Promise<{success: boolean, currentPromptHash: string, staleCount: number, totalCount: number, pages: Array}>}
+ */
+export async function fetchStaleness(fileId) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch(`/api/extended/files/${fileId}/staleness`, {
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to fetch staleness: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Reprocess stale pages for a file.
+ * @param {number} fileId
+ * @param {Array<string>|null} pageIds - specific page IDs, or null for all stale
+ * @returns {Promise<{success: boolean, queuedPageCount: number}>}
+ */
+export async function reprocessFile(fileId, pageIds = null) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const body = pageIds !== null ? JSON.stringify({ pageIds }) : '{}';
+
+    const response = await fetch(`/api/extended/files/${fileId}/reprocess`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-access-token': currentToken
+        },
+        body
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to reprocess file: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Reprocess a single page.
+ * @param {number} fileId
+ * @param {string} pageId
+ * @returns {Promise<{success: boolean, queuedPageCount: number}>}
+ */
+export async function reprocessPage(fileId, pageId) {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch(`/api/extended/files/${fileId}/pages/${pageId}/reprocess`, {
+        method: 'POST',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to reprocess page: ${response.status}`);
+    return await response.json();
+}
+
+/**
+ * Reprocess all note files for the current user.
+ * @returns {Promise<{success: boolean, queuedPageCount: number}>}
+ */
+export async function reprocessAllNotes() {
+    const currentToken = getToken();
+    if (!currentToken) throw new Error("Unauthorized");
+
+    const response = await fetch('/api/extended/reprocess-all', {
+        method: 'POST',
+        headers: { 'x-access-token': currentToken }
+    });
+
+    if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+    if (!response.ok) throw new Error(`Failed to reprocess all notes: ${response.status}`);
+    return await response.json();
+}

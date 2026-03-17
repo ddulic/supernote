@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from supernote.server.utils.note_content import (
 )
 from supernote.server.utils.paths import get_page_png_path
 from supernote.server.utils.prompt_loader import PROMPT_LOADER, PromptId
+
+PromptResolver = Callable[[PromptId, str | None], Awaitable[str]]
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +35,18 @@ class PageMetadata:
         return None
 
 
-def _build_ocr_prompt(page_metadata: PageMetadata) -> str:
-    prompt = PROMPT_LOADER.get_prompt(
-        PromptId.OCR_TRANSCRIPTION, custom_type=page_metadata.file_name_basis
-    )
+async def _build_ocr_prompt(
+    page_metadata: PageMetadata,
+    prompt_resolver: PromptResolver | None = None,
+) -> str:
+    if prompt_resolver is not None:
+        prompt = await prompt_resolver(
+            PromptId.OCR_TRANSCRIPTION, page_metadata.file_name_basis
+        )
+    else:
+        prompt = PROMPT_LOADER.get_prompt(
+            PromptId.OCR_TRANSCRIPTION, custom_type=page_metadata.file_name_basis
+        )
     metadata_block = format_page_metadata(
         page_index=page_metadata.page_index,
         page_id=page_metadata.page_id,
@@ -130,13 +141,17 @@ class OcrModule(ProcessorModule):
             page_id=page_id,
             notebook_create_time=notebook_create_time,
         )
-        prompt = _build_ocr_prompt(page_metadata)
+        prompt_resolver: PromptResolver | None = kwargs.get("prompt_resolver")  # type: ignore[assignment]
+        prompt_hash: str | None = kwargs.get("prompt_hash")  # type: ignore[assignment]
+        prompt = await _build_ocr_prompt(page_metadata, prompt_resolver=prompt_resolver)
         text_content = await self.ai_service.ocr_image(png_data, prompt)
 
         async with session_manager.session() as session:
             content = await get_page_content_by_id(session, file_id, page_id)
             if content:
                 content.text_content = text_content
+                if prompt_hash is not None:
+                    content.prompt_hash = prompt_hash
             else:
                 logger.warning(
                     f"NotePageContentDO missing for {file_id} page {page_id} during OCR"

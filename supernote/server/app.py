@@ -33,6 +33,7 @@ from .routes import (
     file_web,
     mcp,
     oss,
+    prompts,
     schedule,
     summary,
     system,
@@ -51,6 +52,7 @@ from .services.processor_modules.ocr import OcrModule
 from .services.processor_modules.page_hashing import PageHashingModule
 from .services.processor_modules.png_conversion import PngConversionModule
 from .services.processor_modules.summary import SummaryModule
+from .services.prompt_config import PromptConfigService
 from .services.schedule import ScheduleService
 from .services.search import SearchService
 from .services.summary import SummaryService
@@ -364,8 +366,13 @@ def create_app(config: ServerConfig) -> web.Application:
     app["sync_locks"] = {}  # user -> (equipment_no, expiry_time)
     app["rate_limiter"] = RateLimiter(coordination_service)
 
+    from .utils.prompt_loader import PROMPT_LOADER
+
+    prompt_config_service = PromptConfigService(session_manager, PROMPT_LOADER)
+    app["prompt_config_service"] = prompt_config_service
+
     processor_service = ProcessorService(
-        event_bus, session_manager, file_service, summary_service
+        event_bus, session_manager, file_service, summary_service, prompt_config_service
     )
     app["processor_service"] = processor_service
 
@@ -405,6 +412,7 @@ def create_app(config: ServerConfig) -> web.Application:
     app.add_routes(schedule.routes)
     app.add_routes(summary.routes)
     app.add_routes(extended.routes)
+    app.add_routes(prompts.routes)
     app.add_routes(mcp.routes)
 
     # Serve static frontend files
