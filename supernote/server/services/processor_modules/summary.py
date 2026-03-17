@@ -186,10 +186,21 @@ class SummaryModule(ProcessorModule):
         # Determine prompt based on filename/type
         custom_type = Path(file_do.file_name).stem.lower()
 
-        # Load Prompt using specialized logic: Common + (Custom OR Default)
-        prompt_template = PROMPT_LOADER.get_prompt(
-            PromptId.SUMMARY_GENERATION, custom_type=custom_type
+        # Use prompt_resolver if provided, otherwise fall back to PROMPT_LOADER
+        from collections.abc import Awaitable, Callable
+
+        prompt_resolver: Callable[[object, str | None], Awaitable[str]] | None = (
+            kwargs.get("prompt_resolver")  # type: ignore[assignment]
         )
+        if prompt_resolver is not None:
+            prompt_template = await prompt_resolver(
+                PromptId.SUMMARY_GENERATION, custom_type
+            )
+        else:
+            # Load Prompt using specialized logic: Common + (Custom OR Default)
+            prompt_template = PROMPT_LOADER.get_prompt(
+                PromptId.SUMMARY_GENERATION, custom_type=custom_type
+            )
         prompt = f"{prompt_template}\n\nTRANSCRIPT:\n{full_text}"
 
         try:

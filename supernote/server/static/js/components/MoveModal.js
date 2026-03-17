@@ -30,9 +30,9 @@ export default {
                 </div>
 
                 <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                    <button @click="$emit('close')" class="px-4 py-2 text-gray-500 hover:text-black dark:hover:text-white font-medium">Cancel</button>
+                    <button @click="$emit('close')" class="px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                     <button @click="confirmMove" :disabled="!targetDirId"
-                        class="px-6 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-medium transition-all">
+                        class="px-6 py-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors">
                         Move Here
                     </button>
                 </div>

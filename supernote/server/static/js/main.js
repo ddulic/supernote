@@ -7,6 +7,7 @@ import LoginCard from './components/LoginCard.js';
 import FileViewer from './components/FileViewer.js';
 import SystemPanel from './components/SystemPanel.js';
 import ApiKeysPanel from './components/ApiKeysPanel.js';
+import PromptsModal from './components/PromptsModal.js';
 import MoveModal from './components/MoveModal.js';
 import RenameModal from './components/RenameModal.js';
 import ToastContainer from './components/ToastContainer.js';
@@ -18,6 +19,7 @@ createApp({
         FileViewer,
         SystemPanel,
         ApiKeysPanel,
+        PromptsModal,
         MoveModal,
         RenameModal,
         ToastContainer
@@ -44,6 +46,7 @@ createApp({
         const loginError = ref(null);
         const showSystemPanel = ref(false);
         const showApiKeysPanel = ref(false);
+        const showPromptsModal = ref(false);
 
         // UI State
         const showNewFolderModal = ref(false);
@@ -321,6 +324,7 @@ createApp({
             selectedFile,
             showSystemPanel,
             showApiKeysPanel,
+            showPromptsModal,
 
             // New States
             showNewFolderModal,

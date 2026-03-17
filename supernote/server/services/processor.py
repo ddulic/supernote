@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from supernote.models.base import ProcessingStatus
 
@@ -15,6 +19,9 @@ from ..services.file import FileService
 from ..services.processor_modules import ProcessorModule
 from ..services.summary import SummaryService
 from ..utils.paths import get_page_png_path
+
+if TYPE_CHECKING:
+    from ..services.prompt_config import PromptConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +42,14 @@ class ProcessorService:
         session_manager: DatabaseSessionManager,
         file_service: FileService,
         summary_service: SummaryService,
+        prompt_config_service: PromptConfigService | None = None,
         concurrency: int = 2,
     ) -> None:
         self.event_bus = event_bus
         self.session_manager = session_manager
         self.file_service = file_service
         self.summary_service = summary_service
+        self.prompt_config_service = prompt_config_service
         self.concurrency = concurrency
 
         self.queue: asyncio.Queue[int] = asyncio.Queue()  # Queue of file_ids
@@ -270,6 +279,26 @@ class ProcessorService:
             logger.error("Modules not fully registered. Skipping processing.")
             return
 
+        # Resolve prompt context for this file
+        prompt_resolver = None
+        prompt_hash: str | None = None
+        if self.prompt_config_service is not None:
+            async with self.session_manager.session() as session:
+                file_do = await session.get(UserFileDO, file_id)
+            if file_do is not None:
+                user_id: int = file_do.user_id
+                note_type: str | None = (
+                    Path(file_do.file_name).stem.lower() if file_do.file_name else None
+                )
+                prompt_resolver = self.prompt_config_service.make_prompt_resolver(
+                    user_id, note_type
+                )
+                prompt_hash = (
+                    await self.prompt_config_service.compute_combined_prompt_hash(
+                        user_id, note_type
+                    )
+                )
+
         # Pipeline Stage: Global Pre-processing (Hashing)
         for module in self.global_pre_modules:
             if not await module.run(file_id, self.session_manager):
@@ -292,7 +321,13 @@ class ProcessorService:
         else:
             # Pipeline Stage: Per-Page Processing (Parallel across pages)
             tasks = [
-                self._process_page(file_id, page_index, page_id)
+                self._process_page(
+                    file_id,
+                    page_index,
+                    page_id,
+                    prompt_resolver=prompt_resolver,
+                    prompt_hash=prompt_hash,
+                )
                 for page_index, page_id in pages
                 if page_id  # Strict Check: Everything must have a page_id
             ]
@@ -300,9 +335,20 @@ class ProcessorService:
 
         # Pipeline Stage: Global Post-processing (Summary)
         for module in self.global_post_modules:
-            await module.run(file_id, self.session_manager)
+            await module.run(
+                file_id,
+                self.session_manager,
+                prompt_resolver=prompt_resolver,
+            )
 
-    async def _process_page(self, file_id: int, page_index: int, page_id: str) -> None:
+    async def _process_page(
+        self,
+        file_id: int,
+        page_index: int,
+        page_id: str,
+        prompt_resolver: object = None,
+        prompt_hash: str | None = None,
+    ) -> None:
         """Process all modules for a single page sequentially."""
         for module in self.page_modules:
             # We enforce page_id as the task key
@@ -310,13 +356,85 @@ class ProcessorService:
                 file_id,
                 self.session_manager,
                 page_index=page_index,
-                page_id=page_id,  # Pass page_id to modules
+                page_id=page_id,
+                prompt_resolver=prompt_resolver,
+                prompt_hash=prompt_hash,
             )
             if not success:
                 logger.warning(
                     f"Page {page_id} (idx {page_index}) processing stalled at {module.name} for file {file_id}"
                 )
                 break
+
+    async def reprocess_pages(self, file_id: int, page_ids: list[str]) -> int:
+        """Reset task status for specified pages and re-enqueue the file.
+
+        Resets OCR_EXTRACTION and EMBEDDING_GENERATION for each page_id, and
+        SUMMARY_GENERATION (global key) once. Returns the count of pages queued.
+        """
+        if not page_ids:
+            return 0
+
+        async with self.session_manager.session() as session:
+            for page_id in page_ids:
+                for task_type in ("OCR_EXTRACTION", "EMBEDDING_GENERATION"):
+                    await session.execute(
+                        update(SystemTaskDO)
+                        .where(
+                            SystemTaskDO.file_id == file_id,
+                            SystemTaskDO.task_type == task_type,
+                            SystemTaskDO.key == page_id,
+                        )
+                        .values(status=ProcessingStatus.PENDING)
+                    )
+            # Reset global summary task
+            await session.execute(
+                update(SystemTaskDO)
+                .where(
+                    SystemTaskDO.file_id == file_id,
+                    SystemTaskDO.task_type == "SUMMARY_GENERATION",
+                    SystemTaskDO.key == "global",
+                )
+                .values(status=ProcessingStatus.PENDING)
+            )
+            await session.commit()
+
+        self.processing_files.add(file_id)
+        await self.queue.put(file_id)
+        logger.info("Reprocess queued: file_id=%d pages=%d", file_id, len(page_ids))
+        return len(page_ids)
+
+    async def reprocess_all(self, user_id: int) -> int:
+        """Reset all processing tasks for every active note file owned by user_id.
+
+        Resets all SystemTaskDO entries for each file to PENDING and re-enqueues
+        the file. Returns the count of files queued.
+        """
+        async with self.session_manager.session() as session:
+            result = await session.execute(
+                select(UserFileDO).where(
+                    UserFileDO.user_id == user_id,
+                    UserFileDO.file_name.like("%.note"),
+                    UserFileDO.is_active == "Y",
+                    UserFileDO.is_folder == "N",
+                )
+            )
+            files = list(result.scalars().all())
+
+            for file_do in files:
+                await session.execute(
+                    update(SystemTaskDO)
+                    .where(SystemTaskDO.file_id == file_do.id)
+                    .values(status=ProcessingStatus.PENDING)
+                )
+            await session.commit()
+
+        for file_do in files:
+            self.processing_files.add(file_do.id)
+            await self.queue.put(file_do.id)
+
+        logger.info("Reprocess all queued: user_id=%d files=%d", user_id, len(files))
+        return len(files)
 
     async def list_system_tasks(self, limit: int = 100) -> list[SystemTaskDO]:
         """List recent system tasks."""

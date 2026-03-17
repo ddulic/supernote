@@ -69,13 +69,41 @@ async def test_explicit_orchestration_flow(
     hashing.run.assert_called_once_with(file_id, sm_mock)
 
     # Per-Page Pipeline (Parallel across pages)
-    png.run.assert_any_call(file_id, sm_mock, page_index=0, page_id="p0")
-    png.run.assert_any_call(file_id, sm_mock, page_index=1, page_id="p1")
-    ocr.run.assert_any_call(file_id, sm_mock, page_index=0, page_id="p0")
-    embedding.run.assert_any_call(file_id, sm_mock, page_index=0, page_id="p0")
+    png.run.assert_any_call(
+        file_id,
+        sm_mock,
+        page_index=0,
+        page_id="p0",
+        prompt_resolver=None,
+        prompt_hash=None,
+    )
+    png.run.assert_any_call(
+        file_id,
+        sm_mock,
+        page_index=1,
+        page_id="p1",
+        prompt_resolver=None,
+        prompt_hash=None,
+    )
+    ocr.run.assert_any_call(
+        file_id,
+        sm_mock,
+        page_index=0,
+        page_id="p0",
+        prompt_resolver=None,
+        prompt_hash=None,
+    )
+    embedding.run.assert_any_call(
+        file_id,
+        sm_mock,
+        page_index=0,
+        page_id="p0",
+        prompt_resolver=None,
+        prompt_hash=None,
+    )
 
     # Summary (Global) runs last
-    summary.run.assert_called_once_with(file_id, sm_mock)
+    summary.run.assert_called_once_with(file_id, sm_mock, prompt_resolver=None)
 
 
 async def test_dependant_skipping(
@@ -121,11 +149,18 @@ async def test_dependant_skipping(
     await processor_service.process_file(file_id)
 
     # Verify
-    png.run.assert_called_once_with(file_id, sm_mock, page_index=0, page_id="p0")
+    png.run.assert_called_once_with(
+        file_id,
+        sm_mock,
+        page_index=0,
+        page_id="p0",
+        prompt_resolver=None,
+        prompt_hash=None,
+    )
 
     # OCR and Embedding should NOT be checked because PNG returned False
     ocr.run.assert_not_called()
     embedding.run.assert_not_called()
 
     # Summary (Global) should still run
-    summary.run.assert_called_once_with(file_id, sm_mock)
+    summary.run.assert_called_once_with(file_id, sm_mock, prompt_resolver=None)
