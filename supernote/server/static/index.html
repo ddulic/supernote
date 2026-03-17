@@ -37,8 +37,7 @@
                         <div
                             class="w-8 h-8 bg-white rounded flex items-center justify-center text-black font-bold">
                             S</div>
-                        <h1 class="text-xl font-semibold tracking-tight text-white">Supernote <span
-                                class="text-gray-400">Lite</span></h1>
+                        <h1 class="text-xl font-semibold tracking-tight text-white">Supernote</h1>
                     </div>
                     <div class="flex items-center gap-4">
                         <button @click="toggleTheme"
@@ -93,26 +92,24 @@
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <template v-if="isLoggedIn">
-                <!-- Breadcrumbs -->
-                <nav
-                    class="flex mb-8 text-sm font-medium text-gray-500 dark:text-gray-400 items-center overflow-x-auto whitespace-nowrap pb-2">
-                    <div v-for="(crumb, index) in breadcrumbs" :key="crumb.id" class="flex items-center">
-                        <button @click="navigateTo(index)"
-                            :class="index === breadcrumbs.length - 1 ? 'text-black dark:text-white font-bold' : 'hover:text-black dark:hover:text-white transition-colors'"
-                            class="flex items-center">
-                            <svg v-if="index === 0" class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
-                                </path>
-                            </svg>
-                            {{ crumb.name }}
-                        </button>
-                        <span v-if="index < breadcrumbs.length - 1" class="mx-2 text-gray-300 dark:text-gray-600">/</span>
-                    </div>
-                </nav>
-                <!-- Actions Bar -->
-                <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-                    <div class="flex items-center gap-2">
+                <!-- Breadcrumbs + Actions Row -->
+                <div class="flex items-center justify-between gap-4 mb-8">
+                    <nav class="flex items-center overflow-x-auto whitespace-nowrap">
+                        <div v-for="(crumb, index) in breadcrumbs" :key="crumb.id" class="flex items-center">
+                            <span @click="navigateTo(index)"
+                                :class="index === breadcrumbs.length - 1 ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer'"
+                                class="flex items-center text-base font-medium">
+                                <svg v-if="index === 0" class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
+                                    </path>
+                                </svg>
+                                {{ crumb.name }}
+                            </span>
+                            <span v-if="index < breadcrumbs.length - 1" class="mx-2 text-base text-gray-300 dark:text-gray-600">/</span>
+                        </div>
+                    </nav>
+                    <div :class="currentDirectoryId === '0' ? 'invisible' : ''" class="flex items-center gap-2 flex-shrink-0">
                         <button @click="triggerUpload"
                             class="flex items-center gap-2 bg-black border border-black rounded text-sm font-medium text-white hover:bg-gray-800 px-4 py-2 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,8 +127,10 @@
                             New Folder
                         </button>
                     </div>
+                </div>
 
-                    <div v-if="selectedIds.length > 0" class="flex items-center gap-2 animate-in slide-in-from-right">
+                <!-- Selection Actions Bar -->
+                <div v-if="selectedIds.length > 0" class="flex items-center gap-2 animate-in slide-in-from-right mb-8">
                         <span class="text-sm text-gray-500 dark:text-gray-400 font-medium mr-2">{{ selectedIds.length }} selected</span>
                         <button @click="handleMoveSelected"
                             class="px-3 py-1.5 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors">
@@ -145,7 +144,6 @@
                             class="text-sm text-gray-400 hover:text-black dark:hover:text-white underline px-2">
                             Clear
                         </button>
-                    </div>
                 </div>
 
                 <!-- Hidden Upload Input -->

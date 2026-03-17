@@ -1,4 +1,4 @@
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { fetchSummaries, fetchOcrPages } from '../api/client.js';
 
 export default {
@@ -13,6 +13,8 @@ export default {
     },
     setup(props) {
         const ocrContainerRef = ref(null);
+        const aiContainerRef = ref(null);
+
         // AI tab state
         const summaries = ref([]);
         const isLoading = ref(false);
@@ -68,6 +70,71 @@ export default {
             if (tab === 'ocr') loadOcr();
         };
 
+        // Parse segments from a summary item's metadata field.
+        // Returns an array of { date_range, summary, page_refs } or null if none.
+        function parseSegments(item) {
+            if (!item.metadata) return null;
+            try {
+                const meta = JSON.parse(item.metadata);
+                const segs = meta.segments;
+                if (Array.isArray(segs) && segs.length > 0) return segs;
+            } catch (_) {}
+            return null;
+        }
+
+        // For a given summary item, produce the display rows:
+        // either the parsed segments or a single fallback row.
+        const aiRows = computed(() => {
+            const rows = [];
+            for (const item of summaries.value) {
+                const segments = parseSegments(item);
+                if (segments) {
+                    segments.forEach((seg, idx) => {
+                        rows.push({
+                            key: `${item.id}-seg-${idx}`,
+                            dataSource: item.dataSource,
+                            creationTime: item.creationTime,
+                            dateRange: seg.date_range,
+                            content: seg.summary,
+                            pageRefs: seg.page_refs || [],
+                        });
+                    });
+                } else {
+                    rows.push({
+                        key: `${item.id}-full`,
+                        dataSource: item.dataSource,
+                        creationTime: item.creationTime,
+                        dateRange: null,
+                        content: item.content,
+                        pageRefs: [],
+                    });
+                }
+            }
+            return rows;
+        });
+
+        // Find the segment index that best matches activePage.
+        function segmentIndexForPage(pageNo) {
+            if (!pageNo || aiRows.value.length === 0) return -1;
+            // Walk forward and return the last segment whose pageRefs contains a page <= pageNo
+            let best = -1;
+            for (let i = 0; i < aiRows.value.length; i++) {
+                const refs = aiRows.value[i].pageRefs;
+                if (refs.length > 0 && Math.min(...refs) <= pageNo) {
+                    best = i;
+                }
+            }
+            return best >= 0 ? best : 0;
+        }
+
+        function scrollAiToPage(pageNo) {
+            if (!aiContainerRef.value) return;
+            const idx = segmentIndexForPage(pageNo);
+            if (idx < 0) return;
+            const el = aiContainerRef.value.querySelector(`[data-ai-segment="${idx}"]`);
+            if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+
         function scrollOcrToPage(pageNo) {
             if (!ocrContainerRef.value || !pageNo) return;
             const el = ocrContainerRef.value.querySelector(`[data-ocr-page="${pageNo}"]`);
@@ -75,8 +142,11 @@ export default {
         }
 
         watch([() => props.activePage, activeTab], ([newPage, tab]) => {
-            if (tab !== 'ocr') return;
-            nextTick(() => scrollOcrToPage(newPage));
+            if (tab === 'ocr') {
+                nextTick(() => scrollOcrToPage(newPage));
+            } else if (tab === 'ai') {
+                nextTick(() => scrollAiToPage(newPage));
+            }
         });
 
         onMounted(loadSummaries);
@@ -89,12 +159,6 @@ export default {
             loadSummaries();
         });
 
-        // Helper to format text (simple line breaks)
-        const formatContent = (text) => {
-            if (!text) return "";
-            return text.replace(/\n/g, '<br/>');
-        };
-
         const formatDate = (ts) => {
             if (!ts) return "";
             return new Date(ts).toLocaleString();
@@ -105,12 +169,13 @@ export default {
             isLoading,
             error,
             activeTab,
+            aiRows,
+            aiContainerRef,
             ocrPages,
             isOcrLoading,
             ocrError,
             ocrContainerRef,
             selectTab,
-            formatContent,
             formatDate
         };
     },
@@ -151,7 +216,7 @@ export default {
         </div>
 
         <!-- AI Tab Content -->
-        <div v-if="activeTab === 'ai'" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div v-if="activeTab === 'ai'" ref="aiContainerRef" class="flex-1 overflow-y-auto p-4 space-y-4">
             <!-- Loading -->
             <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-3"></div>
@@ -164,20 +229,23 @@ export default {
             </div>
 
             <!-- Empty State -->
-            <div v-if="!isLoading && !error && summaries.length === 0" class="text-center py-12">
+            <div v-if="!isLoading && !error && aiRows.length === 0" class="text-center py-12">
                 <p class="text-gray-400 mb-2">No insights yet.</p>
                 <p class="text-xs text-gray-400">Summaries and transcripts will appear here once processed.</p>
             </div>
 
-            <!-- List -->
-            <div v-for="item in summaries" :key="item.id" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
+            <!-- Segment rows -->
+            <div v-for="(row, idx) in aiRows" :key="row.key" :data-ai-segment="idx" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold px-2 py-1 rounded bg-white dark:bg-gray-600 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-500 capitalize">
-                        {{ item.dataSource || 'Unknown' }}
-                    </span>
-                    <span class="text-xs text-gray-400">{{ formatDate(item.creationTime) }}</span>
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-xs font-semibold px-2 py-1 rounded bg-white dark:bg-gray-600 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-500 capitalize shrink-0">
+                            {{ row.dataSource || 'Unknown' }}
+                        </span>
+                        <span v-if="row.dateRange" class="text-xs font-medium text-black dark:text-white truncate">{{ row.dateRange }}</span>
+                    </div>
+                    <span v-if="row.pageRefs.length > 0" class="text-xs text-gray-400 font-mono shrink-0 ml-2">p.{{ row.pageRefs.join(', ') }}</span>
                 </div>
-                <div class="prose prose-sm max-w-none text-gray-700 dark:text-gray-300" v-html="formatContent(item.content)"></div>
+                <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ row.content }}</div>
             </div>
         </div>
 
