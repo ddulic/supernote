@@ -1,13 +1,18 @@
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { fetchSummaries, fetchOcrPages } from '../api/client.js';
 
 export default {
     props: {
         fileId: {
             required: true
+        },
+        activePage: {
+            type: Number,
+            default: 1
         }
     },
     setup(props) {
+        const ocrContainerRef = ref(null);
         // AI tab state
         const summaries = ref([]);
         const isLoading = ref(false);
@@ -30,7 +35,9 @@ export default {
             try {
                 const result = await fetchSummaries(props.fileId);
                 // Sort by creation time desc
-                summaries.value = result.sort((a, b) => (b.creationTime || 0) - (a.creationTime || 0));
+                summaries.value = result
+                    .filter(s => (s.dataSource || '').toUpperCase() !== 'OCR')
+                    .sort((a, b) => (b.creationTime || 0) - (a.creationTime || 0));
             } catch (e) {
                 console.error(e);
                 error.value = "Failed to load summaries.";
@@ -61,6 +68,17 @@ export default {
             if (tab === 'ocr') loadOcr();
         };
 
+        function scrollOcrToPage(pageNo) {
+            if (!ocrContainerRef.value || !pageNo) return;
+            const el = ocrContainerRef.value.querySelector(`[data-ocr-page="${pageNo}"]`);
+            if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+
+        watch([() => props.activePage, activeTab], ([newPage, tab]) => {
+            if (tab !== 'ocr') return;
+            nextTick(() => scrollOcrToPage(newPage));
+        });
+
         onMounted(loadSummaries);
         watch(() => props.fileId, () => {
             // Reset all state when the viewed file changes
@@ -90,6 +108,7 @@ export default {
             ocrPages,
             isOcrLoading,
             ocrError,
+            ocrContainerRef,
             selectTab,
             formatContent,
             formatDate
@@ -163,7 +182,7 @@ export default {
         </div>
 
         <!-- OCR Tab Content -->
-        <div v-if="activeTab === 'ocr'" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div v-if="activeTab === 'ocr'" ref="ocrContainerRef" class="flex-1 overflow-y-auto p-4 space-y-4">
             <!-- Loading -->
             <div v-if="isOcrLoading" class="flex flex-col items-center justify-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-3"></div>
@@ -182,7 +201,7 @@ export default {
             </div>
 
             <!-- Pages -->
-            <div v-for="page in ocrPages" :key="page.pageIndex" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
+            <div v-for="page in ocrPages" :key="page.pageIndex" :data-ocr-page="page.pageIndex + 1" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
                 <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 font-mono">
                     Page {{ page.pageIndex + 1 }}
                 </div>

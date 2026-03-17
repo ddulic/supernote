@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
 import { convertNoteToPng, fetchStaleness, reprocessFile, reprocessPage } from '../api/client.js';
 import SummaryPanel from './SummaryPanel.js';
 
@@ -18,6 +18,8 @@ export default {
         const isLoading = ref(false);
         const error = ref(null);
         const showDetails = ref(false);
+        const activePage = ref(1);
+        const scrollContainerRef = ref(null);
 
         // Staleness state
         const stalenessData = ref(null);      // full response from /staleness
@@ -114,6 +116,40 @@ export default {
             }
         }
 
+        // IntersectionObserver: track which page is most visible in the scroll area
+        let pageObserver = null;
+        const pageVisibility = new Map(); // pageNo -> intersectionRatio
+
+        function setupPageObserver() {
+            if (pageObserver) { pageObserver.disconnect(); pageObserver = null; }
+            if (!scrollContainerRef.value || !pages.value.length) return;
+
+            pageObserver = new IntersectionObserver((records) => {
+                for (const record of records) {
+                    const pageNo = parseInt(record.target.dataset.pageNo);
+                    pageVisibility.set(pageNo, record.intersectionRatio);
+                }
+                let best = activePage.value, bestRatio = -1;
+                for (const [pageNo, ratio] of pageVisibility) {
+                    if (ratio > bestRatio) { bestRatio = ratio; best = pageNo; }
+                }
+                if (bestRatio > 0) activePage.value = best;
+            }, { root: scrollContainerRef.value, threshold: [0, 0.25, 0.5, 0.75, 1.0] });
+
+            for (const page of pages.value) {
+                const el = scrollContainerRef.value.querySelector(`[data-page-no="${page.pageNo}"]`);
+                if (el) pageObserver.observe(el);
+            }
+        }
+
+        watch(pages, async () => {
+            pageVisibility.clear();
+            await nextTick();
+            setupPageObserver();
+        }, { flush: 'post' });
+
+        onUnmounted(() => { if (pageObserver) pageObserver.disconnect(); });
+
         onMounted(loadPages);
         watch(() => props.file, loadPages);
 
@@ -122,6 +158,8 @@ export default {
             isLoading,
             error,
             showDetails,
+            activePage,
+            scrollContainerRef,
             stalenessData,
             staleCount,
             reprocessingAll,
@@ -170,7 +208,7 @@ export default {
         <!-- Main Content Area -->
         <div class="flex-1 overflow-hidden relative flex">
             <!-- Pages (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-4 sm:p-8">
+            <div ref="scrollContainerRef" class="flex-1 overflow-y-auto p-4 sm:p-8">
                 <div class="max-w-4xl mx-auto">
                     <!-- Error State -->
                     <div v-if="error" class="bg-white dark:bg-gray-800 p-12 rounded border border-gray-200 dark:border-gray-700 text-center">
@@ -189,7 +227,7 @@ export default {
 
                     <!-- Pages List -->
                     <div v-if="!isLoading && !error && pages.length > 0" class="space-y-6">
-                        <div v-for="page in pages" :key="page.pageNo" class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div v-for="page in pages" :key="page.pageNo" :data-page-no="page.pageNo" class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
                             <div class="border-b border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700 flex justify-between items-center text-xs text-gray-400 font-mono">
                                 <div class="flex items-center gap-2">
                                     <span>Page {{ page.pageNo }}</span>
@@ -221,7 +259,7 @@ export default {
                 leave-to-class="translate-x-full"
             >
                 <div v-if="showDetails" class="w-96 border-l border-gray-200 dark:border-gray-700 z-20 absolute right-0 top-0 bottom-0 bg-white dark:bg-gray-800 md:relative">
-                    <summary-panel :file-id="file.id" @close="showDetails = false"></summary-panel>
+                    <summary-panel :file-id="file.id" :active-page="activePage" @close="showDetails = false"></summary-panel>
                 </div>
             </transition>
         </div>
