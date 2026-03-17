@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/ddulic/supernote/compare/v1.0.1...v1.1.0) (2026-03-17)
+
+
+### Features
+
+* add UI-managed prompt configuration (004-ui-prompt-config) ([f1c4126](https://github.com/ddulic/supernote/commit/f1c4126270fc5650374936bc4660e3a9dc5bbc67))
+* UI-managed prompt configuration ([fbec62b](https://github.com/ddulic/supernote/commit/fbec62b22aa0e11099b22794bd0b2bb9da7b7e33))
+
 ## [1.0.0](https://github.com/ddulic/supernote/compare/v0.14.8...v1.0.0) (2026-03-16)
 
 
