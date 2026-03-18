@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/ddulic/supernote/compare/v1.6.0...v1.6.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* browser back navigation and scroll jank (v1.6.1) ([e2d8a5b](https://github.com/ddulic/supernote/commit/e2d8a5b54aab7f09b80eb6f9c0fd6d3f697acbe0))
+* browser back navigation restores grid view and reduce scroll jank ([c983da7](https://github.com/ddulic/supernote/commit/c983da73056bbbe440edac06182f57d2e5281251))
+
 ## [1.6.0](https://github.com/ddulic/supernote/compare/v1.5.0...v1.6.0) (2026-03-18)
 
 
