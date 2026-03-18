@@ -90,7 +90,7 @@
             </div>
         </header>
 
-        <main :class="view === 'viewer' ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8'">
+        <main :class="view === 'viewer' ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 min-h-0 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8'">
             <template v-if="isLoggedIn">
                 <!-- Breadcrumbs + Actions Row -->
                 <div v-if="view !== 'viewer'" class="flex items-center justify-between gap-4 mb-8">
