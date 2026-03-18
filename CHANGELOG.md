@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/ddulic/supernote/compare/v1.4.1...v1.5.0) (2026-03-18)
+
+
+### Features
+
+* improve note viewer with synced insights panel and CI fixes ([4119513](https://github.com/ddulic/supernote/commit/4119513f13c0d94aee38568afbf635788e3aac97))
+* improve note viewer with synced insights panel and CI fixes ([d44ed50](https://github.com/ddulic/supernote/commit/d44ed503dc1e87587a244bf0e7bb26dcc6243f7e))
+
 ## [1.4.1](https://github.com/ddulic/supernote/compare/v1.4.0...v1.4.1) (2026-03-17)
 
 
