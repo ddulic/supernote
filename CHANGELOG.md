@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0](https://github.com/ddulic/supernote/compare/v1.5.0...v1.6.0) (2026-03-18)
+
+
+### Features
+
+* MCP OAuth fixes, browser history navigation, and UI polish ([0863013](https://github.com/ddulic/supernote/commit/0863013a66e53ac602403548c35b4853d8b3d342))
+* MCP OAuth fixes, browser history navigation, and UI polish ([9d70843](https://github.com/ddulic/supernote/commit/9d708435e87ffd2b75322931a99372ac4d97bfe5))
+* support browser back/forward navigation in file explorer ([1e69c95](https://github.com/ddulic/supernote/commit/1e69c9578c6b8613d77a28eb6514565475cea4a8))
+
 ## [1.5.0](https://github.com/ddulic/supernote/compare/v1.4.1...v1.5.0) (2026-03-18)
 
 
