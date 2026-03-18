@@ -112,6 +112,8 @@ createApp({
 
             breadcrumbs.value = crumbs;
             currentDirectoryId.value = currentId;
+            view.value = 'grid';
+            selectedFile.value = null;
             await loadDirectory(currentId);
             return true;
         }
@@ -317,10 +319,7 @@ createApp({
                 try {
                     const result = await fetchProcessingStatus(noteFileIds);
                     if (result.success) {
-                        processingStatuses.value = {
-                            ...processingStatuses.value,
-                            ...result.statusMap
-                        };
+                        Object.assign(processingStatuses.value, result.statusMap);
                         activelyProcessing = Object.values(result.statusMap).some(
                             s => !TERMINAL_STATUSES.has(s)
                         );
