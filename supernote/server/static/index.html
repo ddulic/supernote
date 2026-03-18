@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 
 <head>
     <meta charset="UTF-8">
@@ -28,8 +28,8 @@
     </script>
 </head>
 
-<body class="bg-white dark:bg-gray-900 text-black dark:text-white antialiased min-h-screen">
-    <div id="app" class="flex flex-col min-h-screen" v-cloak>
+<body class="h-full bg-white dark:bg-gray-900 text-black dark:text-white antialiased">
+    <div id="app" class="h-full flex flex-col" v-cloak>
         <header class="sticky top-0 z-50 bg-black border-b border-gray-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
@@ -90,10 +90,10 @@
             </div>
         </header>
 
-        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main :class="view === 'viewer' ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8'">
             <template v-if="isLoggedIn">
                 <!-- Breadcrumbs + Actions Row -->
-                <div class="flex items-center justify-between gap-4 mb-8">
+                <div v-if="view !== 'viewer'" class="flex items-center justify-between gap-4 mb-8">
                     <nav class="flex items-center overflow-x-auto whitespace-nowrap">
                         <div v-for="(crumb, index) in breadcrumbs" :key="crumb.id" class="flex items-center">
                             <span @click="navigateTo(index)"
@@ -189,8 +189,8 @@
                 </div>
 
                 <!-- Viewer -->
-                <div v-if="view === 'viewer'" class="min-h-full">
-                    <file-viewer :file="selectedFile" @close="closeViewer"></file-viewer>
+                <div v-if="view === 'viewer'" class="flex-1 min-h-0 overflow-hidden">
+                    <file-viewer :file="selectedFile" :breadcrumbs="breadcrumbs" @close="closeViewer"></file-viewer>
                 </div>
 
                 <!-- Modals -->

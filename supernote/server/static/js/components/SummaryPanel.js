@@ -11,7 +11,8 @@ export default {
             default: 1
         }
     },
-    setup(props) {
+    emits: ['close', 'has-insights'],
+    setup(props, { emit }) {
         const ocrContainerRef = ref(null);
         const aiContainerRef = ref(null);
 
@@ -36,10 +37,10 @@ export default {
 
             try {
                 const result = await fetchSummaries(props.fileId);
-                // Sort by creation time desc
                 summaries.value = result
                     .filter(s => (s.dataSource || '').toUpperCase() !== 'OCR')
                     .sort((a, b) => (b.creationTime || 0) - (a.creationTime || 0));
+                if (summaries.value.length > 0) emit('has-insights');
             } catch (e) {
                 console.error(e);
                 error.value = "Failed to load summaries.";
@@ -70,8 +71,6 @@ export default {
             if (tab === 'ocr') loadOcr();
         };
 
-        // Parse segments from a summary item's metadata field.
-        // Returns an array of { date_range, summary, page_refs } or null if none.
         function parseSegments(item) {
             if (!item.metadata) return null;
             try {
@@ -82,8 +81,6 @@ export default {
             return null;
         }
 
-        // For a given summary item, produce the display rows:
-        // either the parsed segments or a single fallback row.
         const aiRows = computed(() => {
             const rows = [];
             for (const item of summaries.value) {
@@ -113,10 +110,8 @@ export default {
             return rows;
         });
 
-        // Find the segment index that best matches activePage.
         function segmentIndexForPage(pageNo) {
             if (!pageNo || aiRows.value.length === 0) return -1;
-            // Walk forward and return the last segment whose pageRefs contains a page <= pageNo
             let best = -1;
             for (let i = 0; i < aiRows.value.length; i++) {
                 const refs = aiRows.value[i].pageRefs;
@@ -127,18 +122,26 @@ export default {
             return best >= 0 ? best : 0;
         }
 
+        const SCROLL_PADDING = 16; // matches space-y-4 between panel cards
+
         function scrollAiToPage(pageNo) {
-            if (!aiContainerRef.value) return;
+            const container = aiContainerRef.value;
+            if (!container) return;
             const idx = segmentIndexForPage(pageNo);
             if (idx < 0) return;
-            const el = aiContainerRef.value.querySelector(`[data-ai-segment="${idx}"]`);
-            if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            const el = container.querySelector(`[data-ai-segment="${idx}"]`);
+            if (!el) return;
+            const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - SCROLL_PADDING;
+            container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
         }
 
         function scrollOcrToPage(pageNo) {
-            if (!ocrContainerRef.value || !pageNo) return;
-            const el = ocrContainerRef.value.querySelector(`[data-ocr-page="${pageNo}"]`);
-            if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            const container = ocrContainerRef.value;
+            if (!container || !pageNo) return;
+            const el = container.querySelector(`[data-ocr-page="${pageNo}"]`);
+            if (!el) return;
+            const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - SCROLL_PADDING;
+            container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
         }
 
         watch([() => props.activePage, activeTab], ([newPage, tab]) => {
@@ -151,7 +154,6 @@ export default {
 
         onMounted(loadSummaries);
         watch(() => props.fileId, () => {
-            // Reset all state when the viewed file changes
             activeTab.value = 'ai';
             ocrPages.value = [];
             ocrLoaded.value = false;
@@ -165,7 +167,6 @@ export default {
         };
 
         return {
-            summaries,
             isLoading,
             error,
             activeTab,
@@ -180,7 +181,7 @@ export default {
         };
     },
     template: `
-    <div class="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 w-full md:w-96">
+    <div class="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 w-full md:w-96">
         <!-- Header -->
         <div class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
             <div class="px-4 flex items-center justify-between">
@@ -188,7 +189,6 @@ export default {
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     AI Insights
                 </h3>
-                <!-- Tabs inline with header -->
                 <div class="flex gap-1 mx-2">
                     <button
                         @click="selectTab('ai')"
@@ -216,59 +216,40 @@ export default {
         </div>
 
         <!-- AI Tab Content -->
-        <div v-if="activeTab === 'ai'" ref="aiContainerRef" class="flex-1 overflow-y-auto p-4 space-y-4">
-            <!-- Loading -->
+        <div v-if="activeTab === 'ai'" ref="aiContainerRef" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-3"></div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Thinking...</p>
             </div>
-
-            <!-- Error -->
             <div v-if="error" class="bg-gray-100 dark:bg-gray-700 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded text-sm">
                 {{ error }}
             </div>
-
-            <!-- Empty State -->
             <div v-if="!isLoading && !error && aiRows.length === 0" class="text-center py-12">
                 <p class="text-gray-400 mb-2">No insights yet.</p>
                 <p class="text-xs text-gray-400">Summaries and transcripts will appear here once processed.</p>
             </div>
-
-            <!-- Segment rows -->
             <div v-for="(row, idx) in aiRows" :key="row.key" :data-ai-segment="idx" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="text-xs font-semibold px-2 py-1 rounded bg-white dark:bg-gray-600 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-500 capitalize shrink-0">
-                            {{ row.dataSource || 'Unknown' }}
-                        </span>
-                        <span v-if="row.dateRange" class="text-xs font-medium text-black dark:text-white truncate">{{ row.dateRange }}</span>
-                    </div>
-                    <span v-if="row.pageRefs.length > 0" class="text-xs text-gray-400 font-mono shrink-0 ml-2">p.{{ row.pageRefs.join(', ') }}</span>
+                <div v-if="row.dateRange || row.pageRefs.length > 0" class="flex items-center justify-between mb-2">
+                    <span v-if="row.dateRange" class="text-xs font-medium text-black dark:text-white truncate">{{ row.dateRange }}</span>
+                    <span v-if="row.pageRefs.length > 0" class="text-xs text-gray-400 font-mono shrink-0 ml-auto">p.{{ row.pageRefs.join(', ') }}</span>
                 </div>
                 <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ row.content }}</div>
             </div>
         </div>
 
         <!-- OCR Tab Content -->
-        <div v-if="activeTab === 'ocr'" ref="ocrContainerRef" class="flex-1 overflow-y-auto p-4 space-y-4">
-            <!-- Loading -->
+        <div v-if="activeTab === 'ocr'" ref="ocrContainerRef" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             <div v-if="isOcrLoading" class="flex flex-col items-center justify-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-3"></div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Loading OCR text...</p>
             </div>
-
-            <!-- Error -->
             <div v-if="ocrError" class="bg-gray-100 dark:bg-gray-700 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded text-sm">
                 {{ ocrError }}
             </div>
-
-            <!-- Empty State -->
             <div v-if="!isOcrLoading && !ocrError && ocrPages.length === 0" class="text-center py-12">
                 <p class="text-gray-400 mb-2">No OCR text available.</p>
                 <p class="text-xs text-gray-400">Text will appear here once the note has been processed.</p>
             </div>
-
-            <!-- Pages -->
             <div v-for="page in ocrPages" :key="page.pageIndex" :data-ocr-page="page.pageIndex + 1" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
                 <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 font-mono">
                     Page {{ page.pageIndex + 1 }}
