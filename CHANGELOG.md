@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.1](https://github.com/ddulic/supernote/compare/v1.4.0...v1.4.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* add id-token write permission for docker reusable workflow ([a095f94](https://github.com/ddulic/supernote/commit/a095f94987cfe307ba93e605b1f9a91403120c40))
+* add id-token write permission for docker reusable workflow ([2ed894b](https://github.com/ddulic/supernote/commit/2ed894b3324ee16f89bcbbbb2004ac74cf6605e1))
+* rename release-please job to avoid hyphen in needs expression ([27a101e](https://github.com/ddulic/supernote/commit/27a101e6ba4ab30c9365cefc13e4748628a6aa60))
+* rename release-please job to fix startup failure ([d1ec8a2](https://github.com/ddulic/supernote/commit/d1ec8a2e313030894d2088f6f75d3aaa0bddbd5c))
+* skip CI on release-please PRs and trigger Docker build on release ([befe518](https://github.com/ddulic/supernote/commit/befe51833bbd594449e0df23b853ddae39d279f2))
+* skip CI on release-please PRs and trigger Docker build on release ([e348c91](https://github.com/ddulic/supernote/commit/e348c9122a4bc538bbfa40503aea9a818853e273))
+
 ## [1.4.0](https://github.com/ddulic/supernote/compare/v1.3.0...v1.4.0) (2026-03-17)
 
 
