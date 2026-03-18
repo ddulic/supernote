@@ -259,6 +259,7 @@ def create_auth_app(
     issuer_url: str,
     main_base_url: str,
     session_service: OAuthSessionService,
+    resource_server_url: str | None = None,
 ) -> Starlette:
     """Create a Starlette app for the MCP Authorization Server."""
     provider = SupernoteOAuthProvider(
@@ -279,7 +280,7 @@ def create_auth_app(
     # routes[0] (the well-known) with a corrected metadata object.
     base = issuer_url.rstrip("/")
     fixed_metadata = OAuthMetadata(
-        issuer=AnyHttpUrl(issuer_url),
+        issuer=AnyHttpUrl(base),
         authorization_endpoint=AnyHttpUrl(f"{base}/authorize"),
         token_endpoint=AnyHttpUrl(f"{base}/token"),
         registration_endpoint=AnyHttpUrl(f"{base}/register"),
@@ -389,5 +390,31 @@ def create_auth_app(
             methods=["GET", "POST", "OPTIONS"],
         )
     )
+
+    # RFC 9728: OAuth 2.0 Protected Resource Metadata.
+    # MCP clients fetch this to discover the resource server URL and its
+    # authorization server, which resolves the "POST / 404" fallback behaviour
+    # when clients don't know the exact MCP endpoint path.
+    if resource_server_url:
+        _resource_server_url = resource_server_url
+        _issuer_url = issuer_url
+
+        async def protected_resource_metadata(request: Request) -> JSONResponse:
+            return JSONResponse(
+                {
+                    "resource": _resource_server_url,
+                    "authorization_servers": [_issuer_url],
+                }
+            )
+
+        routes.append(
+            Route(
+                "/.well-known/oauth-protected-resource",
+                endpoint=cors_middleware(
+                    protected_resource_metadata, ["GET", "OPTIONS"]
+                ),
+                methods=["GET", "OPTIONS"],
+            )
+        )
 
     return Starlette(routes=routes, debug=True)

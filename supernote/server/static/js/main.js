@@ -1,4 +1,4 @@
-import { createApp, ref, onMounted, computed } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+import { createApp, ref, onMounted, computed, watch } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
 import { useFileSystem } from './composables/useFileSystem.js';
 import { useToast } from './composables/useToast.js';
 import { setToken, getToken, login, logout, fetchProcessingStatus } from './api/client.js';
@@ -75,13 +75,17 @@ createApp({
         const selectedFile = ref(null);
         const breadcrumbs = ref([{ id: "0", name: "Cloud" }]);
 
-        function saveNavToUrl() {
+        function saveNavToUrl({ replace = false } = {}) {
             const segments = breadcrumbs.value.slice(1).map(c => encodeURIComponent(c.name));
             if (view.value === 'viewer' && selectedFile.value) {
                 segments.push(encodeURIComponent(selectedFile.value.name));
             }
             const path = segments.length > 0 ? '/' + segments.join('/') : '/';
-            history.replaceState(null, '', path);
+            if (replace) {
+                history.replaceState(null, '', path);
+            } else {
+                history.pushState(null, '', path);
+            }
         }
         async function restoreNavFromUrl() {
             const segments = window.location.pathname.slice(1).split('/').filter(Boolean).map(decodeURIComponent);
@@ -259,6 +263,7 @@ createApp({
             if (!await restoreNavFromUrl()) {
                 await loadDirectory();
             }
+            history.replaceState(null, '', window.location.pathname);
             return true;
         }
 
@@ -280,15 +285,34 @@ createApp({
         onMounted(async () => {
             await resumeSession();
 
-            // Polling for processing status
+            window.addEventListener('popstate', async () => {
+                if (!isLoggedIn.value) return;
+                selectedIds.value = [];
+                const restored = await restoreNavFromUrl();
+                if (!restored) {
+                    breadcrumbs.value = [{ id: "0", name: "Cloud" }];
+                    currentDirectoryId.value = "0";
+                    view.value = 'grid';
+                    selectedFile.value = null;
+                    await loadDirectory("0");
+                }
+            });
+
+            // Polling for processing status — only while something is actively in-progress.
+            // A directory load resets activelyProcessing so newly synced files are picked up.
+            const TERMINAL_STATUSES = new Set(['COMPLETED', 'NONE', '']);
+            let activelyProcessing = false;
+
+            watch(() => currentDirectoryId.value, () => { activelyProcessing = true; });
+
             setInterval(async () => {
-                if (!isLoggedIn.value || isLoading.value || files.value.length === 0) return;
+                if (!isLoggedIn.value || isLoading.value || view.value !== 'grid' || !activelyProcessing) return;
 
                 const noteFileIds = files.value
                     .filter(f => f.extension === 'note')
                     .map(f => parseInt(f.id));
 
-                if (noteFileIds.length === 0) return;
+                if (noteFileIds.length === 0) { activelyProcessing = false; return; }
 
                 try {
                     const result = await fetchProcessingStatus(noteFileIds);
@@ -297,11 +321,14 @@ createApp({
                             ...processingStatuses.value,
                             ...result.statusMap
                         };
+                        activelyProcessing = Object.values(result.statusMap).some(
+                            s => !TERMINAL_STATUSES.has(s)
+                        );
                     }
                 } catch (e) {
                     console.error("Failed to poll status:", e);
                 }
-            }, 3000); // Every 3 seconds
+            }, 3000);
         });
 
         return {

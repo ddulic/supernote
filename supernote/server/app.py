@@ -486,6 +486,7 @@ def create_app(config: ServerConfig) -> web.Application:
             issuer_url=config.mcp_base_url,
             main_base_url=config.base_url,
             session_service=app["oauth_session_service"],
+            resource_server_url=rs_url,
         )
         asgi_resource = ASGIResource(auth_app)
         app.router.register_resource(asgi_resource)
