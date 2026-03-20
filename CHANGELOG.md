@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.2](https://github.com/ddulic/supernote/compare/v1.6.1...v1.6.2) (2026-03-20)
+
+
+### Bug Fixes
+
+* remove CSS scroll snap from file viewer for smooth scrolling ([df002b9](https://github.com/ddulic/supernote/commit/df002b9d5fce84af501833e3b991e7163c47b467))
+* remove CSS scroll snap from file viewer pages ([f8d58ec](https://github.com/ddulic/supernote/commit/f8d58ec7aef43b93aeb41a4d63f32187f4ecd885))
+
 ## [1.6.1](https://github.com/ddulic/supernote/compare/v1.6.0...v1.6.1) (2026-03-18)
 
 
