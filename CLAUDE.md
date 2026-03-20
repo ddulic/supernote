@@ -1,6 +1,6 @@
 # supernote Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-17
+Auto-generated from all feature plans. Last updated: 2026-03-20
 
 ## Active Technologies
 - N/A (no Python source changes) + GitHub Dependabot (native GitHub feature, no external service) (002-switch-dependabot)
@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-17
 - SQLite via SQLAlchemy asyncio — new `f_prompt_config` table; new `prompt_hash` column on `f_note_page_content` (004-ui-prompt-config)
 - Python 3.13+ (backend), Vanilla JS / Vue 3 ESM (frontend) + aiohttp, SQLAlchemy asyncio + aiosqlite, mashumaro, alembic (005-cache-png-insights-tabs)
 - SQLite (DB via SQLAlchemy), LocalBlobStorage (disk — `supernote-user-data` bucket) (005-cache-png-insights-tabs)
+- Python 3.13+ (backend), Vanilla JS / Vue 3 ESM (frontend — no build step) + aiohttp (server), SQLAlchemy asyncio + aiosqlite, mashumaro; Vue 3 ESM (frontend) (014-insights-scroll-autoupdate)
+- SQLite via SQLAlchemy (existing `f_summary`, `f_system_task` tables — no schema changes) (014-insights-scroll-autoupdate)
 
 - Python 3.13+ + mypy (strict), SQLAlchemy asyncio, aiohttp, mashumaro, pytest + pytest-asyncio (001-constitution-alignment)
 
@@ -66,9 +68,9 @@ Button Tailwind classes — use verbatim:
 - **Dark mode**: every interactive element must have `dark:` variants
 
 ## Recent Changes
+- 014-insights-scroll-autoupdate: Added Python 3.13+ (backend), Vanilla JS / Vue 3 ESM (frontend — no build step) + aiohttp (server), SQLAlchemy asyncio + aiosqlite, mashumaro; Vue 3 ESM (frontend)
 - 005-cache-png-insights-tabs: Added Python 3.13+ (backend), Vanilla JS / Vue 3 ESM (frontend) + aiohttp, SQLAlchemy asyncio + aiosqlite, mashumaro, alembic
 - 004-ui-prompt-config: Added Python 3.13+ + aiohttp (server), SQLAlchemy asyncio + aiosqlite, mashumaro, alembic; Vanilla JS (Vue 3, no build step) for frontend
-- 003-github-releases: Added N/A (no Python source changes — CI/CD configuration only) + GitHub Actions (`docker/metadata-action`, `docker/build-push-action`, `docker/login-action`)
 
 
 <!-- MANUAL ADDITIONS START -->
