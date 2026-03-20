@@ -157,6 +157,14 @@ export default {
         onMounted(loadPages);
         watch(() => props.file, loadPages);
 
+        function onNavigateToPage({ pageNo }) {
+            const container = scrollContainerRef.value;
+            if (!container) return;
+            const el = container.querySelector(`[data-page-no="${pageNo}"]`);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         return {
             pages,
             isLoading,
@@ -172,6 +180,7 @@ export default {
             pageId,
             handleReprocessAll,
             handleReprocessPage,
+            onNavigateToPage,
         };
     },
     template: `
@@ -214,7 +223,7 @@ export default {
         <!-- Main Content Area -->
         <div class="flex-1 overflow-hidden relative flex">
             <!-- Pages (Scrollable) -->
-            <div ref="scrollContainerRef" class="flex-1 overflow-y-auto p-4 sm:p-8 snap-y snap-proximity scroll-pt-6">
+            <div ref="scrollContainerRef" class="flex-1 overflow-y-auto p-4 sm:p-8">
                 <div class="max-w-4xl mx-auto">
                     <!-- Error State -->
                     <div v-if="error" class="bg-white dark:bg-gray-800 p-12 rounded border border-gray-200 dark:border-gray-700 text-center">
@@ -233,7 +242,7 @@ export default {
 
                     <!-- Pages List -->
                     <div v-if="!isLoading && !error && pages.length > 0" class="space-y-6">
-                        <div v-for="page in pages" :key="page.pageNo" :data-page-no="page.pageNo" class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden snap-start scroll-mt-6">
+                        <div v-for="page in pages" :key="page.pageNo" :data-page-no="page.pageNo" class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
                             <div class="border-b border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700 flex justify-between items-center text-xs text-gray-400 font-mono">
                                 <div class="flex items-center gap-2">
                                     <span>Page {{ page.pageNo }}</span>
@@ -265,7 +274,7 @@ export default {
                 leave-to-class="translate-x-full"
             >
                 <div v-show="showDetails" class="w-96 border-l border-gray-200 dark:border-gray-700 z-20 absolute right-0 top-0 bottom-0 bg-white dark:bg-gray-800 md:relative md:flex md:flex-col min-h-0">
-                    <summary-panel :file-id="file.id" :active-page="activePage" @close="showDetails = false" @has-insights="showDetails = true"></summary-panel>
+                    <summary-panel :file-id="file.id" :active-page="activePage" @close="showDetails = false" @has-insights="showDetails = true" @navigate-to-page="onNavigateToPage"></summary-panel>
                 </div>
             </transition>
         </div>

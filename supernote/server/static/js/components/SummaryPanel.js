@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import { fetchSummaries, fetchOcrPages } from '../api/client.js';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { fetchSummaries, fetchOcrPages, fetchProcessingStatus } from '../api/client.js';
 
 export default {
     props: {
@@ -11,7 +11,7 @@ export default {
             default: 1
         }
     },
-    emits: ['close', 'has-insights'],
+    emits: ['close', 'has-insights', 'navigate-to-page'],
     setup(props, { emit }) {
         const ocrContainerRef = ref(null);
         const aiContainerRef = ref(null);
@@ -27,6 +27,11 @@ export default {
         const isOcrLoading = ref(false);
         const ocrError = ref(null);
         const ocrLoaded = ref(false);
+
+        // Processing state for live updates (AI and OCR tracked independently)
+        const processingState = ref('idle');    // AI tab: stops when AI summaries appear
+        const ocrProcessingState = ref('idle'); // OCR tab: stops when OCR tasks complete
+        const pollTimer = ref(null);
 
         const loadSummaries = async () => {
             if (!props.fileId) return;
@@ -152,18 +157,123 @@ export default {
             }
         });
 
-        onMounted(loadSummaries);
+        // Polling: live update when processing completes
+        const stopPolling = () => {
+            if (pollTimer.value) {
+                clearInterval(pollTimer.value);
+                pollTimer.value = null;
+            }
+        };
+
+        const startPolling = async () => {
+            if (!props.fileId) return;
+
+            // If summaries already loaded, only poll if active processing is detected.
+            if (summaries.value.length > 0) {
+                try {
+                    const result = await fetchProcessingStatus([props.fileId]);
+                    const status = (result.statusMap || {})[String(props.fileId)] || 'NONE';
+                    if (status !== 'PENDING' && status !== 'PROCESSING') return;
+                    processingState.value = 'polling';
+                    // OCR is already done if summaries exist
+                } catch (e) {
+                    return;
+                }
+            } else {
+                // No summaries yet — start polling immediately for both tabs.
+                processingState.value = 'polling';
+                ocrProcessingState.value = 'polling';
+            }
+
+            let consecutiveNone = 0;
+            let consecutiveCompleted = 0;
+
+            pollTimer.value = setInterval(async () => {
+                try {
+                    const r = await fetchProcessingStatus([props.fileId]);
+                    const s = (r.statusMap || {})[String(props.fileId)] || 'NONE';
+
+                    if (s === 'PENDING' || s === 'PROCESSING') {
+                        consecutiveNone = 0;
+                        consecutiveCompleted = 0;
+                        return; // Still running
+                    }
+
+                    if (s === 'FAILED') {
+                        stopPolling();
+                        processingState.value = summaries.value.length > 0 ? 'idle' : 'failed';
+                        ocrProcessingState.value = 'failed';
+                        return;
+                    }
+
+                    if (s === 'NONE') {
+                        consecutiveNone++;
+                        consecutiveCompleted = 0;
+                        // Wait up to 40 seconds for tasks to be created before giving up
+                        if (consecutiveNone < 10) return;
+                        stopPolling();
+                        processingState.value = 'idle';
+                        ocrProcessingState.value = 'idle';
+                        return;
+                    }
+
+                    // COMPLETED — OCR tasks are done; mark OCR indicator complete
+                    consecutiveNone = 0;
+                    ocrProcessingState.value = 'done';
+
+                    ocrLoaded.value = false;
+                    await loadSummaries();
+                    if (activeTab.value === 'ocr') await loadOcr();
+
+                    if (summaries.value.length > 0) {
+                        // AI summaries are available — done
+                        stopPolling();
+                        processingState.value = 'done';
+                        return;
+                    }
+
+                    // All known tasks completed but no AI summaries yet.
+                    // The summary task is created after per-page tasks finish,
+                    // so it may not exist yet — keep polling for a bit longer.
+                    consecutiveCompleted++;
+                    if (consecutiveCompleted >= 5) {
+                        // Still no summaries after 20s of COMPLETED status — give up
+                        stopPolling();
+                        processingState.value = 'idle';
+                    }
+                } catch (e) {
+                    console.error('Processing status poll error:', e);
+                }
+            }, 4000);
+        };
+
+        onMounted(() => {
+            loadSummaries().then(() => startPolling());
+        });
+
+        onUnmounted(() => {
+            stopPolling();
+        });
+
         watch(() => props.fileId, () => {
+            stopPolling();
+            processingState.value = 'idle';
+            ocrProcessingState.value = 'idle';
             activeTab.value = 'ai';
             ocrPages.value = [];
             ocrLoaded.value = false;
             ocrError.value = null;
-            loadSummaries();
+            loadSummaries().then(() => startPolling());
         });
 
         const formatDate = (ts) => {
             if (!ts) return "";
             return new Date(ts).toLocaleString();
+        };
+
+        const navigateToPage = (row) => {
+            if (row.pageRefs.length === 0) return;
+            emit('navigate-to-page', { pageNo: row.pageRefs[0] });
         };
 
         return {
@@ -176,8 +286,11 @@ export default {
             isOcrLoading,
             ocrError,
             ocrContainerRef,
+            processingState,
+            ocrProcessingState,
             selectTab,
-            formatDate
+            formatDate,
+            navigateToPage,
         };
     },
     template: `
@@ -224,11 +337,27 @@ export default {
             <div v-if="error" class="bg-gray-100 dark:bg-gray-700 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded text-sm">
                 {{ error }}
             </div>
-            <div v-if="!isLoading && !error && aiRows.length === 0" class="text-center py-12">
+            <div v-if="processingState === 'polling'" class="flex items-center gap-2 p-3 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600 rounded text-sm">
+                <div class="animate-spin w-4 h-4 border-b-2 border-amber-600 dark:border-amber-400 rounded-full shrink-0"></div>
+                Processing…
+            </div>
+            <div v-if="processingState === 'failed'" class="p-3 border border-gray-200 dark:border-gray-700 rounded text-sm text-gray-500 dark:text-gray-400">
+                Processing did not complete.
+            </div>
+            <div v-if="!isLoading && !error && aiRows.length === 0 && processingState !== 'polling'" class="text-center py-12">
                 <p class="text-gray-400 mb-2">No insights yet.</p>
                 <p class="text-xs text-gray-400">Summaries and transcripts will appear here once processed.</p>
             </div>
-            <div v-for="(row, idx) in aiRows" :key="row.key" :data-ai-segment="idx" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
+            <div
+                v-for="(row, idx) in aiRows"
+                :key="row.key"
+                :data-ai-segment="idx"
+                :class="[
+                    'bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600',
+                    row.pageRefs.length > 0 ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors' : ''
+                ]"
+                @click="navigateToPage(row)"
+            >
                 <div v-if="row.dateRange || row.pageRefs.length > 0" class="flex items-center justify-between mb-2">
                     <span v-if="row.dateRange" class="text-xs font-medium text-black dark:text-white truncate">{{ row.dateRange }}</span>
                     <span v-if="row.pageRefs.length > 0" class="text-xs text-gray-400 font-mono shrink-0 ml-auto">p.{{ row.pageRefs.join(', ') }}</span>
@@ -246,11 +375,24 @@ export default {
             <div v-if="ocrError" class="bg-gray-100 dark:bg-gray-700 text-black dark:text-white border border-gray-300 dark:border-gray-600 p-4 rounded text-sm">
                 {{ ocrError }}
             </div>
-            <div v-if="!isOcrLoading && !ocrError && ocrPages.length === 0" class="text-center py-12">
+            <div v-if="ocrProcessingState === 'polling'" class="flex items-center gap-2 p-3 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600 rounded text-sm">
+                <div class="animate-spin w-4 h-4 border-b-2 border-amber-600 dark:border-amber-400 rounded-full shrink-0"></div>
+                Processing…
+            </div>
+            <div v-if="ocrProcessingState === 'failed'" class="p-3 border border-gray-200 dark:border-gray-700 rounded text-sm text-gray-500 dark:text-gray-400">
+                Processing did not complete.
+            </div>
+            <div v-if="!isOcrLoading && !ocrError && ocrPages.length === 0 && ocrProcessingState !== 'polling'" class="text-center py-12">
                 <p class="text-gray-400 mb-2">No OCR text available.</p>
                 <p class="text-xs text-gray-400">Text will appear here once the note has been processed.</p>
             </div>
-            <div v-for="page in ocrPages" :key="page.pageIndex" :data-ocr-page="page.pageIndex + 1" class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600">
+            <div
+                v-for="page in ocrPages"
+                :key="page.pageIndex"
+                :data-ocr-page="page.pageIndex + 1"
+                class="bg-gray-50 dark:bg-gray-700 rounded p-4 border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                @click="$emit('navigate-to-page', { pageNo: page.pageIndex + 1 })"
+            >
                 <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 font-mono">
                     Page {{ page.pageIndex + 1 }}
                 </div>
