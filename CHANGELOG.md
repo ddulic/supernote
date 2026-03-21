@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.3](https://github.com/ddulic/supernote/compare/v1.6.2...v1.6.3) (2026-03-21)
+
+
+### Documentation
+
+* add spec for 014-insights-scroll-autoupdate ([83f8d45](https://github.com/ddulic/supernote/commit/83f8d45d5cdc2abd39910122a52df1e8f671e593))
+* add spec for 014-insights-scroll-autoupdate ([9b1d85b](https://github.com/ddulic/supernote/commit/9b1d85b493e9879412df5913a7244389024f712d))
+
 ## [1.6.2](https://github.com/ddulic/supernote/compare/v1.6.1...v1.6.2) (2026-03-20)
 
 
