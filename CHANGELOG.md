@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.4](https://github.com/ddulic/supernote/compare/v1.6.3...v1.6.4) (2026-04-02)
+
+
+### Bug Fixes
+
+* upgrade dependencies to address security vulnerabilities ([3dd6d15](https://github.com/ddulic/supernote/commit/3dd6d15db7c0650fc5977a58aec5d1c753e0b8f8))
+* upgrade dependencies to address security vulnerabilities ([bda8ada](https://github.com/ddulic/supernote/commit/bda8adad4a29c5101ed8c66fda922b24935d93fe))
+
 ## [1.6.3](https://github.com/ddulic/supernote/compare/v1.6.2...v1.6.3) (2026-03-21)
 
 
