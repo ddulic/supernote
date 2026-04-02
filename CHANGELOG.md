@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.6.3](https://github.com/ddulic/supernote/compare/v1.6.2...v1.6.3) (2026-03-21)
+
+
+### Documentation
+
+* add spec for 014-insights-scroll-autoupdate ([83f8d45](https://github.com/ddulic/supernote/commit/83f8d45d5cdc2abd39910122a52df1e8f671e593))
+* add spec for 014-insights-scroll-autoupdate ([9b1d85b](https://github.com/ddulic/supernote/commit/9b1d85b493e9879412df5913a7244389024f712d))
+
+## [1.6.2](https://github.com/ddulic/supernote/compare/v1.6.1...v1.6.2) (2026-03-20)
+
+
+### Bug Fixes
+
+* remove CSS scroll snap from file viewer for smooth scrolling ([df002b9](https://github.com/ddulic/supernote/commit/df002b9d5fce84af501833e3b991e7163c47b467))
+* remove CSS scroll snap from file viewer pages ([f8d58ec](https://github.com/ddulic/supernote/commit/f8d58ec7aef43b93aeb41a4d63f32187f4ecd885))
+
+## [1.6.1](https://github.com/ddulic/supernote/compare/v1.6.0...v1.6.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* browser back navigation and scroll jank (v1.6.1) ([e2d8a5b](https://github.com/ddulic/supernote/commit/e2d8a5b54aab7f09b80eb6f9c0fd6d3f697acbe0))
+* browser back navigation restores grid view and reduce scroll jank ([c983da7](https://github.com/ddulic/supernote/commit/c983da73056bbbe440edac06182f57d2e5281251))
+
+## [1.6.0](https://github.com/ddulic/supernote/compare/v1.5.0...v1.6.0) (2026-03-18)
+
+
+### Features
+
+* MCP OAuth fixes, browser history navigation, and UI polish ([0863013](https://github.com/ddulic/supernote/commit/0863013a66e53ac602403548c35b4853d8b3d342))
+* MCP OAuth fixes, browser history navigation, and UI polish ([9d70843](https://github.com/ddulic/supernote/commit/9d708435e87ffd2b75322931a99372ac4d97bfe5))
+* support browser back/forward navigation in file explorer ([1e69c95](https://github.com/ddulic/supernote/commit/1e69c9578c6b8613d77a28eb6514565475cea4a8))
+
 ## [1.5.0](https://github.com/ddulic/supernote/compare/v1.4.1...v1.5.0) (2026-03-18)
 
 
