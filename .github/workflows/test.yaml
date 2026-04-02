@@ -41,7 +41,7 @@ jobs:
       - name: Test with pytest
         run: |
           pytest --cov=supernote --cov-report=term-missing --cov-report=xml
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
