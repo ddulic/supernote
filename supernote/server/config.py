@@ -330,7 +330,7 @@ class ServerConfig(DataClassYAMLMixin):
 
         if gemini_api_key := os.getenv("SUPERNOTE_GEMINI_API_KEY"):
             config.gemini_api_key = gemini_api_key
-            logger.info("Using SUPERNOTE_GEMINI_API_KEY")
+            logger.info("Using SUPERNOTE_GEMINI_API_KEY: ***")
 
         if gemini_ocr_model := os.getenv("SUPERNOTE_GEMINI_OCR_MODEL"):
             config.gemini_ocr_model = gemini_ocr_model
@@ -367,7 +367,7 @@ class ServerConfig(DataClassYAMLMixin):
 
         if mistral_api_key := os.getenv("SUPERNOTE_MISTRAL_API_KEY"):
             config.mistral_api_key = mistral_api_key
-            logger.info("Using SUPERNOTE_MISTRAL_API_KEY")
+            logger.info("Using SUPERNOTE_MISTRAL_API_KEY: ***")
 
         if mistral_ocr_model := os.getenv("SUPERNOTE_MISTRAL_OCR_MODEL"):
             config.mistral_ocr_model = mistral_ocr_model

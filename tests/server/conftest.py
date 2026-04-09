@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import socket
+import warnings
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -34,6 +35,16 @@ from supernote.server.services.coordination import (
     SqliteCoordinationService,
 )
 from supernote.server.services.user import JWT_ALGORITHM, UserService
+
+
+def _warn_md5_usage() -> None:
+    """Warn about MD5 usage for security awareness."""
+    warnings.warn(
+        "MD5 is used for Supernote protocol compatibility but is cryptographically weak.",
+        UserWarning,
+        stacklevel=2,
+    )
+
 
 TEST_USERNAME = "test@example.com"
 TEST_PASSWORD = "testpassword"
@@ -72,7 +83,7 @@ def proxy_mode() -> str | None:
 def pick_port() -> int:
     """Find a free port on the host."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("", 0))
+        s.bind(("127.0.0.1", 0))
         return int(s.getsockname()[1])
 
 
@@ -152,6 +163,7 @@ async def create_test_user(
         if await user_service.check_user_exists(test_user):
             await user_service.unregister(test_user)
 
+        _warn_md5_usage()
         result = await user_service.create_user(
             UserRegisterDTO(
                 email=test_user,

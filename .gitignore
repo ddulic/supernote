@@ -147,6 +147,7 @@ venv.bak/
 dmypy.json
 
 .DS_Store
+.vibe/
 data
 storage
 config/

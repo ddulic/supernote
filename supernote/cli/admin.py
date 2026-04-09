@@ -7,11 +7,22 @@ import asyncio
 import getpass
 import hashlib
 import sys
+import warnings
 
 from supernote.client.admin import AdminClient
 from supernote.client.exceptions import ApiException
 
 from .client import create_session
+
+
+def _warn_md5_usage() -> None:
+    """Warn about MD5 usage for security awareness."""
+    warnings.warn(
+        "MD5 is used for Supernote protocol compatibility but is cryptographically weak. "
+        "This is required for device compatibility, not a security best practice.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
 async def add_user_async(
@@ -24,6 +35,7 @@ async def add_user_async(
         admin_client = AdminClient(session.client)
 
         # Hash password
+        _warn_md5_usage()
         password_md5 = hashlib.md5(password.encode()).hexdigest()
 
         # Try Public Registration
@@ -110,6 +122,7 @@ async def reset_password_async(url: str, email: str, password: str) -> None:
         print(f"Attempting to reset password for '{email}' on {url}...")
         admin_client = AdminClient(session.client)
 
+        _warn_md5_usage()
         password_md5 = hashlib.md5(password.encode()).hexdigest()
 
         try:

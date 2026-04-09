@@ -43,13 +43,14 @@ async def test_proxy_headers_ignored_by_default(
     assert full_upload_url is not None
 
     # Should NOT use forwarded headers, should use actual test client host
-    assert not full_upload_url.startswith("https://malicious-domain.com"), (
+    from urllib.parse import urlparse
+
+    parsed_url = urlparse(full_upload_url)
+    assert parsed_url.netloc != "malicious-domain.com", (
         f"Proxy headers should be ignored by default, got: {full_upload_url}"
     )
     # Should use the test server's actual scheme and host
-    assert (
-        "http://127.0.0.1" in full_upload_url or "http://localhost" in full_upload_url
-    )
+    assert parsed_url.hostname == "127.0.0.1" or parsed_url.hostname == "localhost"
 
 
 @pytest.mark.parametrize("proxy_mode", ["relaxed"])
@@ -83,9 +84,10 @@ async def test_upload_url_proxy_headers_relaxed(
     assert full_upload_url is not None
 
     # Verification: Should use forwarded headers
-    assert full_upload_url.startswith("https://my-public-domain.com"), (
-        f"Got URL: {full_upload_url}"
-    )
+    from urllib.parse import urlparse
+
+    parsed_url = urlparse(full_upload_url)
+    assert parsed_url.netloc == "my-public-domain.com", f"Got URL: {full_upload_url}"
 
 
 @pytest.mark.parametrize("proxy_mode", ["relaxed"])
