@@ -1,9 +1,27 @@
-"""Module for hashing utilities."""
+"""Module for hashing utilities.
+
+Security Note:
+This module implements the Supernote protocol's password hashing scheme which uses MD5.
+MD5 is considered cryptographically broken and unsuitable for security purposes.
+However, it is required for compatibility with official Supernote devices.
+The protocol uses: MD5(password) + SHA256(MD5(password) + salt)
+"""
 
 import hashlib
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
+
+
+def _warn_md5_usage() -> None:
+    """Warn about MD5 usage for security awareness."""
+    warnings.warn(
+        "MD5 is used for Supernote protocol compatibility but is cryptographically weak. "
+        "This is required for device compatibility, not a security best practice.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
 def _sha256_string(s: str) -> str:
@@ -12,7 +30,11 @@ def _sha256_string(s: str) -> str:
 
 
 def _md5_string(s: str) -> str:
-    """Return MD5 hex digest of a string."""
+    """Return MD5 hex digest of a string.
+
+    Security Warning: MD5 is cryptographically broken but required for Supernote protocol compatibility.
+    """
+    _warn_md5_usage()
     return hashlib.md5(s.encode("utf-8")).hexdigest()
 
 

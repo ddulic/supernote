@@ -1,6 +1,7 @@
 """Tests for the login flow."""
 
 import hashlib
+import warnings
 from typing import Awaitable, Callable
 
 import aiohttp
@@ -11,6 +12,15 @@ from pytest_aiohttp import AiohttpClient
 
 from supernote.client import Client
 from supernote.models.auth import LoginVO, RandomCodeVO
+
+
+def _warn_md5_usage() -> None:
+    """Warn about MD5 usage for security awareness."""
+    warnings.warn(
+        "MD5 is used for Supernote protocol compatibility but is cryptographically weak.",
+        UserWarning,
+        stacklevel=2,
+    )
 
 
 # Mock SHA-256 implementation matching the JS one
