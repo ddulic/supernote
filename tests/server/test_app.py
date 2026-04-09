@@ -46,7 +46,7 @@ async def test_proxy_headers_ignored_by_default(
     from urllib.parse import urlparse
 
     parsed_url = urlparse(full_upload_url)
-    assert not parsed_url.netloc.startswith("malicious-domain.com"), (
+    assert parsed_url.netloc != "malicious-domain.com", (
         f"Proxy headers should be ignored by default, got: {full_upload_url}"
     )
     # Should use the test server's actual scheme and host

@@ -131,6 +131,18 @@ async def test_generate_json_not_configured() -> None:
         await svc.generate_json("prompt", schema={})
 
 
+async def test_generate_json_none_message(service: MistralService) -> None:
+    mock_choice = MagicMock()
+    mock_choice.message = None  # This is the case that was causing the mypy error
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    service._client.chat.complete_async = AsyncMock(return_value=mock_response)  # type: ignore[union-attr, method-assign]
+
+    result = await service.generate_json("prompt", schema={})
+
+    assert result == ""
+
+
 async def test_ocr_image_empty_pages(service: MistralService) -> None:
     mock_response = MagicMock()
     mock_response.pages = []
