@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.5](https://github.com/ddulic/supernote/compare/v1.6.4...v1.6.5) (2026-04-09)
+
+
+### Bug Fixes
+
+* address all 18 code scanning security vulnerabilities ([6fadb96](https://github.com/ddulic/supernote/commit/6fadb96110a916e9b2ed79d985adb48655d2ba56))
+* address all 18 code scanning security vulnerabilities ([8b7cd62](https://github.com/ddulic/supernote/commit/8b7cd6281308ce2bd3606bf3ad0c50709935707e))
+* address mypy union-attr error, CodeQL warning, and add missing test coverage ([5de7a90](https://github.com/ddulic/supernote/commit/5de7a9019c4f141ceb2af4968636f6f592c70cad))
+
 ## [1.6.4](https://github.com/ddulic/supernote/compare/v1.6.3...v1.6.4) (2026-04-02)
 
 
