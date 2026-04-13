@@ -177,7 +177,7 @@ class WebClient:
 
     async def upload_file(self, parent_id: int, name: str, content: bytes) -> None:
         """Upload a file (Web API)."""
-        md5 = hashlib.md5(content).hexdigest()
+        md5 = hashlib.md5(content, usedforsecurity=False).hexdigest()
         size = len(content)
 
         # Apply to get an upload endpoint

@@ -281,7 +281,7 @@ class Client:
                 raise ValueError("No upload URL available")
 
             # Compute MD5 of content for verification
-            content_md5 = hashlib.md5(content).hexdigest()
+            content_md5 = hashlib.md5(content, usedforsecurity=False).hexdigest()
 
             _LOGGER.debug(
                 "Uploading file %s in one chunk (MD5: %s)", filename, content_md5
@@ -324,7 +324,7 @@ class Client:
         # Break into chunks
         chunks = [content[i : i + chunk_size] for i in range(0, size, chunk_size)]
         for i, chunk in enumerate(chunks):
-            chunk_md5 = hashlib.md5(chunk).hexdigest()
+            chunk_md5 = hashlib.md5(chunk, usedforsecurity=False).hexdigest()
             _LOGGER.debug(f"Uploading chunk {i + 1} of {size} ({len(chunk)} bytes)")
             data = FormData()
             data.add_field("file", chunk, filename=filename)
