@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.8](https://github.com/ddulic/supernote/compare/v1.6.7...v1.6.8) (2026-04-13)
+
+
+### Bug Fixes
+
+* **security:** replace runtime MD5 calls in tests with precomputed constant ([3704e2c](https://github.com/ddulic/supernote/commit/3704e2caa0978420cbb0d55bae9f566068e85931))
+* **security:** replace runtime MD5 calls in tests with precomputed constant ([659d3a7](https://github.com/ddulic/supernote/commit/659d3a785911bfac3a45fa872a04916eed00d657))
+
 ## [1.6.7](https://github.com/ddulic/supernote/compare/v1.6.6...v1.6.7) (2026-04-13)
 
 
