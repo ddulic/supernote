@@ -36,7 +36,9 @@ async def add_user_async(
 
         # Hash password
         _warn_md5_usage()
-        password_md5 = hashlib.md5(password.encode(), usedforsecurity=False).hexdigest()
+        password_md5 = hashlib.md5(
+            password.encode(), usedforsecurity=False
+        ).hexdigest()  # lgtm[py/weak-sensitive-data-hashing]
 
         # Try Public Registration
         try:
@@ -123,7 +125,9 @@ async def reset_password_async(url: str, email: str, password: str) -> None:
         admin_client = AdminClient(session.client)
 
         _warn_md5_usage()
-        password_md5 = hashlib.md5(password.encode(), usedforsecurity=False).hexdigest()
+        password_md5 = hashlib.md5(
+            password.encode(), usedforsecurity=False
+        ).hexdigest()  # lgtm[py/weak-sensitive-data-hashing]
 
         try:
             await admin_client.admin_reset_password(email, password_md5)

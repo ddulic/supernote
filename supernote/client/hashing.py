@@ -35,7 +35,9 @@ def _md5_string(s: str) -> str:
     Security Warning: MD5 is cryptographically broken but required for Supernote protocol compatibility.
     """
     _warn_md5_usage()
-    return hashlib.md5(s.encode("utf-8"), usedforsecurity=False).hexdigest()
+    return hashlib.md5(
+        s.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()  # lgtm[py/weak-sensitive-data-hashing]
 
 
 def hash_with_salt(content: str, salt: str) -> str:
