@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.9](https://github.com/ddulic/supernote/compare/v1.6.8...v1.6.9) (2026-04-13)
+
+
+### Bug Fixes
+
+* **security:** replace runtime SHA256 call in test_login with precomputed constant ([2118d4d](https://github.com/ddulic/supernote/commit/2118d4d380ebbf02c9902d35a04fbb1fb79da3ba))
+* **security:** replace runtime SHA256 call in test_login with precomputed constant ([ea2a378](https://github.com/ddulic/supernote/commit/ea2a378f6f4ef1b5972a9634f31b7926e8dacd47))
+
 ## [1.6.8](https://github.com/ddulic/supernote/compare/v1.6.7...v1.6.8) (2026-04-13)
 
 
