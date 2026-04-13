@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.6](https://github.com/ddulic/supernote/compare/v1.6.5...v1.6.6) (2026-04-13)
+
+
+### Bug Fixes
+
+* **deps:** bump aiohttp to 3.13.5 and PyJWT to 2.12.0 ([a949a27](https://github.com/ddulic/supernote/commit/a949a27c3d3d0e139cccd1d82978321074f77892))
+* **deps:** bump aiohttp to 3.13.5 and PyJWT to 2.12.0 ([8751aa3](https://github.com/ddulic/supernote/commit/8751aa398c960698c5cc8a71d2550fa251665cdf))
+
 ## [1.6.5](https://github.com/ddulic/supernote/compare/v1.6.4...v1.6.5) (2026-04-09)
 
 
