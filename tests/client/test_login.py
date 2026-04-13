@@ -1,7 +1,5 @@
 """Tests for the login flow."""
 
-import hashlib
-import warnings
 from typing import Awaitable, Callable
 
 import aiohttp
@@ -13,19 +11,8 @@ from pytest_aiohttp import AiohttpClient
 from supernote.client import Client
 from supernote.models.auth import LoginVO, RandomCodeVO
 
-
-def _warn_md5_usage() -> None:
-    """Warn about MD5 usage for security awareness."""
-    warnings.warn(
-        "MD5 is used for Supernote protocol compatibility but is cryptographically weak.",
-        UserWarning,
-        stacklevel=2,
-    )
-
-
-# Mock SHA-256 implementation matching the JS one
-def sha256(data: str) -> str:
-    return hashlib.sha256(data.encode()).hexdigest()
+# Pre-computed SHA256("password" + "123456") — fixed values used by test mock and test_login_flow
+_TEST_LOGIN_HASH = "a4dd5658ec0219465b705ea7c7435d9786a3c66d4f448cabd7488dabceafb699"
 
 
 async def handler_random_code(request: web.Request) -> web.Response:
@@ -41,11 +28,7 @@ async def handler_random_code(request: web.Request) -> web.Response:
 async def handler_login_new(request: web.Request) -> web.Response:
     """Handle new login request."""
     data = await request.json()
-    # Verify password hash logic: SHA256(md5(password) + randomCode)
-    # Assume password is "password" and randomCode is "123456"
-    expected_hash = sha256("password" + "123456")
-
-    if data.get("password") == expected_hash:
+    if data.get("password") == _TEST_LOGIN_HASH:
         return web.json_response(
             {"success": True, "token": "new-access-token", "counts": "0"}
         )
@@ -80,9 +63,8 @@ async def test_login_flow(client: Client) -> None:
     assert code_resp.success
     assert code_resp.random_code == "123456"
 
-    # Step 2: Calculate hash
-    password = "password"
-    password_hash = sha256(password + code_resp.random_code)
+    # Step 2: Use pre-computed hash (SHA256("password" + "123456"), matching mock)
+    password_hash = _TEST_LOGIN_HASH
 
     # Step 3: Login
     login_resp = await client.post_json(
