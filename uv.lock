@@ -1447,7 +1447,7 @@ wheels = [
 
 [[package]]
 name = "supernote"
-version = "1.6.4"
+version = "1.6.6"
 source = { editable = "." }
 dependencies = [
     { name = "colour" },

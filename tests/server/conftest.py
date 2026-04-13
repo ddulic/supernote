@@ -3,11 +3,9 @@
 This module is automatically discovered by pytest as a plugin.
 """
 
-import hashlib
 import json
 import logging
 import socket
-import warnings
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -36,18 +34,10 @@ from supernote.server.services.coordination import (
 )
 from supernote.server.services.user import JWT_ALGORITHM, UserService
 
-
-def _warn_md5_usage() -> None:
-    """Warn about MD5 usage for security awareness."""
-    warnings.warn(
-        "MD5 is used for Supernote protocol compatibility but is cryptographically weak.",
-        UserWarning,
-        stacklevel=2,
-    )
-
-
 TEST_USERNAME = "test@example.com"
 TEST_PASSWORD = "testpassword"
+# Pre-computed MD5(TEST_PASSWORD) — required by Supernote protocol (device auth uses MD5 pre-hashing)
+TEST_PASSWORD_MD5 = "e16b2ab8d12314bf4efbd6203906ea6c"
 
 
 # Use in-memory SQLite for tests
@@ -163,11 +153,10 @@ async def create_test_user(
         if await user_service.check_user_exists(test_user):
             await user_service.unregister(test_user)
 
-        _warn_md5_usage()
         result = await user_service.create_user(
             UserRegisterDTO(
                 email=test_user,
-                password=hashlib.md5(TEST_PASSWORD.encode("utf-8")).hexdigest(),
+                password=TEST_PASSWORD_MD5,
                 user_name="Test User",
             )
         )
