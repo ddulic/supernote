@@ -106,7 +106,7 @@ class LocalBlobStorage(BlobStorage):
         temp_path = temp_dir / f"{secrets.token_hex(8)}.tmp"
 
         total_size = 0
-        md5_hasher = hashlib.md5()
+        md5_hasher = hashlib.md5(usedforsecurity=False)
 
         try:
             async with aiofiles.open(temp_path, "wb") as f:
@@ -191,7 +191,7 @@ class LocalBlobStorage(BlobStorage):
             return BlobMetadata(size=stat.st_size)
 
         # Compute MD5 and size
-        md5_hasher = hashlib.md5()
+        md5_hasher = hashlib.md5(usedforsecurity=False)
         read_size = 0
         async with aiofiles.open(path, "rb") as f:
             while True:

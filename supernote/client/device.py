@@ -173,7 +173,7 @@ class DeviceClient:
         _LOGGER.debug("Initiating upload for file %s", path)
         apply = await self.upload_apply(filename, path, size, equipment_no)
 
-        md5 = hashlib.md5(content).hexdigest()
+        md5 = hashlib.md5(content, usedforsecurity=False).hexdigest()
 
         await self._client._upload_to_oss(
             content,
