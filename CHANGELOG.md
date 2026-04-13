@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.7](https://github.com/ddulic/supernote/compare/v1.6.6...v1.6.7) (2026-04-13)
+
+
+### Bug Fixes
+
+* **security:** add usedforsecurity=False to all hashlib.md5 calls ([10287c5](https://github.com/ddulic/supernote/commit/10287c5adbf93d5aec49958e3930c96b87abced3))
+* **security:** add usedforsecurity=False to all hashlib.md5 calls ([9aefad1](https://github.com/ddulic/supernote/commit/9aefad1f692bd9f7672ae5f166629e293e9cad10))
+* **security:** remove ineffective lgtm suppression comments ([c8d9bdb](https://github.com/ddulic/supernote/commit/c8d9bdb2def8279a76caf39994b22b53c230a65d))
+* **security:** suppress CodeQL weak-sensitive-data-hashing for MD5 password pre-hashing ([c15c03f](https://github.com/ddulic/supernote/commit/c15c03f0106f93dadaa00192a5820ee272f3c318))
+
 ## [1.6.6](https://github.com/ddulic/supernote/compare/v1.6.5...v1.6.6) (2026-04-13)
 
 
