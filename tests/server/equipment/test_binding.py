@@ -1,19 +1,9 @@
 import hashlib
-import warnings
 from typing import Any
 
 from aiohttp.test_utils import TestClient
 
-from tests.server.conftest import TEST_PASSWORD, TEST_USERNAME
-
-
-def _warn_md5_usage() -> None:
-    """Warn about MD5 usage for security awareness."""
-    warnings.warn(
-        "MD5 is used for Supernote protocol compatibility but is cryptographically weak.",
-        UserWarning,
-        stacklevel=2,
-    )
+from tests.server.conftest import TEST_PASSWORD_MD5, TEST_USERNAME
 
 
 async def _login(client: TestClient, equipment_no: str) -> Any:
@@ -26,9 +16,7 @@ async def _login(client: TestClient, equipment_no: str) -> Any:
     timestamp = data["timestamp"]
 
     # 2. Login
-    _warn_md5_usage()
-    pwd_md5 = hashlib.md5(TEST_PASSWORD.encode()).hexdigest()
-    concat = pwd_md5 + code
+    concat = TEST_PASSWORD_MD5 + code
     password_hash = hashlib.sha256(concat.encode()).hexdigest()
 
     resp = await client.post(
