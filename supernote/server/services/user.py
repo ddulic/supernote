@@ -219,20 +219,51 @@ class UserService:
     ) -> bool:
         user = await self._get_user_do(account)
         if not user or not user.is_active:
+            logger.warning("verify_login_hash: user %s not found or inactive", account)
             return False
 
         stored_value = await self._coordination_service.get_value(
             f"challenge:{account}"
         )
         if not stored_value:
+            logger.warning(
+                "verify_login_hash: no challenge found for %s (expired or never issued)",
+                account,
+            )
             return False
 
         random_code, stored_timestamp = stored_value.split("|")
-        if stored_timestamp != timestamp:
+        # Accept timestamps within the challenge TTL to tolerate device clock skew.
+        # Exact equality breaks when the device sends its own local time rather than
+        # echoing the server's challenge timestamp. The random_code nonce + TTL already
+        # provides replay protection, so strict equality is not needed here.
+        try:
+            ts_diff = abs(int(stored_timestamp) - int(timestamp))
+            if ts_diff > int(RANDOM_CODE_TTL.total_seconds() * 1000):
+                logger.warning(
+                    "verify_login_hash: timestamp skew too large for %s "
+                    "(stored=%s client=%s diff=%dms limit=%dms)",
+                    account,
+                    stored_timestamp,
+                    timestamp,
+                    ts_diff,
+                    int(RANDOM_CODE_TTL.total_seconds() * 1000),
+                )
+                return False
+        except ValueError:
+            logger.warning(
+                "verify_login_hash: non-numeric timestamp for %s (stored=%s client=%s)",
+                account,
+                stored_timestamp,
+                timestamp,
+            )
             return False
 
         expected_hash = hash_with_salt(user.password_md5, random_code)
-        return expected_hash == client_hash
+        if expected_hash != client_hash:
+            logger.warning("verify_login_hash: hash mismatch for %s", account)
+            return False
+        return True
 
     async def login(
         self,
