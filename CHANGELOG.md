@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.10](https://github.com/ddulic/supernote/compare/v1.6.9...v1.6.10) (2026-06-28)
+
+
+### Bug Fixes
+
+* **auth:** tolerate device clock skew in login timestamp check ([c65b75a](https://github.com/ddulic/supernote/commit/c65b75a629a3b17e1f3a8c7468a4985f2fbd288e))
+* **auth:** tolerate device clock skew in login timestamp check ([3def3f0](https://github.com/ddulic/supernote/commit/3def3f0c45fc9e1dfdb164884d5d3285f50fc2b3))
+
 ## [1.6.9](https://github.com/ddulic/supernote/compare/v1.6.8...v1.6.9) (2026-04-13)
 
 
